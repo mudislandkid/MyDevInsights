@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api'
@@ -264,7 +264,7 @@ export function Queue() {
         </div>
       </div>
 
-      {/* Main Content */}}
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-6">
           {/* Stats Cards */}
