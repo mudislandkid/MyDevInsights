@@ -174,13 +174,20 @@ export function Dashboard() {
       <header className="glass border-b border-border sticky top-0 z-50 backdrop-blur-lg shadow-lg">
         <div className="container mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                MyDevInsights
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1.5">
-                AI-powered project discovery and analysis
-              </p>
+            <div className="flex items-center gap-4">
+              <img
+                src="/logo.svg"
+                alt="MyDevInsights Logo"
+                className="h-12 w-12"
+              />
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                  MyDevInsights
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1.5">
+                  AI-powered project discovery and analysis
+                </p>
+              </div>
             </div>
             <div className="flex gap-3">
               <Button
