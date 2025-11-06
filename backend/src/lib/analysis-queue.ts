@@ -71,8 +71,9 @@ export class AnalysisQueueClient {
     }
 
     try {
+      // Note: Priority feature disabled due to BullMQ processing issues
+      // Jobs will be processed in FIFO order
       const job = await this.queue.add('analyze-project', data, {
-        priority: data.priority === 'high' ? 1 : data.priority === 'low' ? 3 : 2,
         jobId: `analysis-${data.projectId}-${Date.now()}`,
       });
 
