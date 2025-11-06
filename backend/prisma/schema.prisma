@@ -1,0 +1,135 @@
+// Project Viewer - Database Schema
+// Prisma ORM Schema for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+  // Enable preview features for better PostgreSQL support
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Enums
+// ============================================================================
+
+/// Project lifecycle status
+enum ProjectStatus {
+  DISCOVERED  // Just found by file watcher
+  QUEUED      // Queued for AI analysis
+  ANALYZING   // Currently being analyzed by Claude
+  ANALYZED    // Analysis complete
+  ERROR       // Analysis failed
+  ARCHIVED    // User archived the project
+}
+
+// ============================================================================
+// Models
+// ============================================================================
+
+/// Main Project model representing a development project
+model Project {
+  // Primary key
+  id String @id @default(cuid())
+
+  // Core fields
+  name        String
+  path        String  @unique // Unique file system path
+  description String? @db.Text
+
+  // Metadata extracted from project files
+  framework      String? // e.g., "React", "Next.js", "Vue"
+  language       String? // e.g., "TypeScript", "JavaScript", "Python"
+  packageManager String? // e.g., "npm", "yarn", "pnpm"
+
+  // File statistics
+  fileCount    Int?
+  linesOfCode  Int? // Total lines of code (excluding comments/blank lines)
+  lastModified DateTime?
+  size         BigInt? // Total size in bytes
+
+  // Project status
+  status   ProjectStatus @default(DISCOVERED)
+  isActive Boolean       @default(true)
+
+  // Timestamps
+  discoveredAt DateTime  @default(now())
+  analyzedAt   DateTime? // When AI analysis completed
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  analyses ProjectAnalysis[]
+  tags     Tag[]
+
+  // Indexes for query optimization
+  @@index([status])
+  @@index([discoveredAt])
+  @@index([status, discoveredAt]) // Composite index for sorted queries
+  @@index([framework])
+  @@index([language])
+  @@map("projects")
+}
+
+/// AI-generated analysis of a project using Claude API
+model ProjectAnalysis {
+  // Primary key
+  id String @id @default(cuid())
+
+  // Foreign key to Project
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Claude analysis results
+  summary String @db.Text // AI-generated project summary
+
+  // Tech stack breakdown (stored as JSON)
+  // Structure: { frontend: [], backend: [], database: [], devops: [], testing: [] }
+  techStack Json @default("{}")
+
+  // Complexity assessment
+  complexity String? // "simple", "moderate", "complex"
+
+  // Additional recommendations (JSON array)
+  recommendations Json? @default("[]")
+
+  // Project maturity and value assessment
+  completionScore Int? // 0-100 score of project completeness
+  maturityLevel   String? // "poc", "mvp", "production-ready", "enterprise"
+  productionGaps  Json? @default("[]") // Array of strings describing what's needed for production
+  estimatedValue  Json? // { currency, saasMonthly: {min, max, confidence}, ipSale: {min, max, confidence}, reasoning }
+
+  // Analysis metadata
+  model      String // e.g., "claude-3-5-sonnet-20241022"
+  tokensUsed Int? // API tokens consumed
+  cacheHit   Boolean @default(false) // Was this served from cache?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Indexes
+  @@index([projectId])
+  @@index([createdAt])
+  @@map("project_analyses")
+}
+
+/// Tag for organizing and categorizing projects
+model Tag {
+  // Primary key
+  id String @id @default(cuid())
+
+  // Tag details
+  name  String  @unique
+  color String? // Hex color for UI (e.g., "#FF5733")
+
+  // Relations (many-to-many with Projects)
+  projects Project[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tags")
+}

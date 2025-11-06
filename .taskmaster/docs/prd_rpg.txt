@@ -1,0 +1,1250 @@
+<rpg-method>
+# Repository Planning Graph (RPG) Method - PRD Template
+
+This PRD uses the RPG methodology from Microsoft Research to create structured, dependency-aware development plans.
+</rpg-method>
+
+---
+
+<overview>
+## Problem Statement
+
+Developers accumulate dozens or hundreds of projects across their machines, making it difficult to:
+- Remember what each project does months after creation
+- Find specific projects quickly
+- Understand project tech stacks at a glance
+- Maintain an organized portfolio for showcasing work
+- Keep track of project status and activity
+
+Traditional solutions (file browsers, manual documentation) are tedious and quickly become outdated.
+
+## Target Users
+
+**Primary Persona**: Professional developers who:
+- Maintain 20-200+ projects on their local machine
+- Work across multiple tech stacks and frameworks
+- Need quick project discovery and context retrieval
+- Want to showcase their work in a professional manner
+- Value automation over manual documentation
+
+**Use Cases**:
+1. Developer creates new project → System auto-discovers and analyzes it within 30 seconds
+2. Developer needs to find a React project → Dashboard filters show all React projects instantly
+3. Developer wants to show their portfolio → Opens sleek dashboard instead of navigating folders
+4. Developer needs to jump back into old project → Clicks card, reads AI summary, opens in VSCode
+
+## Success Metrics
+
+- **Auto-Discovery Speed**: < 1 second from folder creation to detection
+- **AI Analysis Time**: < 30 seconds from discovery to completed summary
+- **Dashboard Load Time**: < 1 second for 100+ projects
+- **Search Performance**: < 100ms for filtered results
+- **User Delight**: "Show-off quality" dark futuristic UI
+- **System Reliability**: Handle 500+ projects without performance degradation
+- **Cache Hit Rate**: > 80% for repeated analysis requests
+
+</overview>
+
+---
+
+<functional-decomposition>
+
+## Capability Tree
+
+### Capability: Project Discovery
+Automatically detect new projects and extract basic metadata from file system.
+
+#### Feature: File System Monitoring
+- **Description**: Watch specified directory for new project folders in real-time
+- **Inputs**: Base directory path, ignore patterns (node_modules, .git, etc.)
+- **Outputs**: Project discovery events with path and timestamp
+- **Behavior**: Use Chokidar to monitor directory changes with debouncing (2s stability threshold), emit events for new top-level folders only (depth: 1)
+
+#### Feature: Project Metadata Extraction
+- **Description**: Extract basic information from project files (package.json, README, etc.)
+- **Inputs**: Project directory path
+- **Outputs**: Project name, framework, language, package manager, file count, last modified date
+- **Behavior**: Parse package.json for dependencies, scan for config files (vite.config, tsconfig), count files recursively (excluding node_modules)
+
+#### Feature: Project Validation
+- **Description**: Determine if a folder is actually a development project
+- **Inputs**: Directory path, folder contents
+- **Outputs**: Boolean (is valid project) + confidence score
+- **Behavior**: Check for existence of package.json, requirements.txt, Cargo.toml, go.mod, or other project markers; exclude system folders and non-project directories
+
+---
+
+### Capability: AI-Powered Analysis
+Generate intelligent project summaries and insights using Claude API.
+
+#### Feature: Project Context Building
+- **Description**: Prepare project data for AI analysis
+- **Inputs**: Project metadata, file structure, key files (README, main entry points)
+- **Outputs**: Structured prompt with project context
+- **Behavior**: Read critical files (README, package.json, primary code files), create hierarchical structure summary, limit total content to 10K tokens for API efficiency
+
+#### Feature: Claude API Integration
+- **Description**: Call Claude API to analyze project and generate summary
+- **Inputs**: Project context prompt, model configuration
+- **Outputs**: AI-generated summary, tech stack analysis, complexity assessment, recommendations
+- **Behavior**: Make API call with prompt caching enabled, implement exponential backoff for rate limits, parse structured response, handle errors gracefully
+
+#### Feature: Analysis Caching
+- **Description**: Cache AI responses to reduce API calls and costs
+- **Inputs**: Project path hash, analysis result
+- **Outputs**: Cached analysis or cache miss signal
+- **Behavior**: Check Redis cache first (key: project hash + last modified date), return cached if < 24h old, otherwise queue new analysis; store successful responses with 24h TTL
+
+#### Feature: Background Job Processing
+- **Description**: Queue and process AI analysis jobs asynchronously
+- **Inputs**: Project path, priority level
+- **Outputs**: Job status updates, completed analysis
+- **Behavior**: Add jobs to BullMQ queue, process with concurrency limit (5 workers), implement rate limiting (10 jobs/min), retry failed jobs 3x with exponential backoff, emit WebSocket events on completion
+
+---
+
+### Capability: Data Management
+Store, retrieve, and organize project information efficiently.
+
+#### Feature: Database Operations
+- **Description**: Persist project data and analysis results
+- **Inputs**: Project objects, analysis results, status updates
+- **Outputs**: Database records, query results
+- **Behavior**: Use Prisma ORM for type-safe queries, store projects with metadata in PostgreSQL, maintain analysis history, handle concurrent updates with transactions
+
+#### Feature: Search & Filtering
+- **Description**: Find projects based on various criteria
+- **Inputs**: Search query, filters (framework, language, status, tags)
+- **Outputs**: Matching projects, result count
+- **Behavior**: Implement full-text search on name/description (PostgreSQL), filter by multiple criteria simultaneously, support fuzzy matching for typos, return paginated results (20 per page)
+
+#### Feature: Project Tagging
+- **Description**: Organize projects with custom tags
+- **Inputs**: Project ID, tag names, tag colors
+- **Outputs**: Updated project with tags
+- **Behavior**: Create/reuse tags in database, associate with projects via many-to-many relation, support auto-tagging based on framework detection
+
+#### Feature: Status Management
+- **Description**: Track project lifecycle states
+- **Inputs**: Project ID, new status (discovered, queued, analyzing, analyzed, error, archived)
+- **Outputs**: Updated project status, timestamp
+- **Behavior**: Enforce valid status transitions, trigger appropriate actions on status change (e.g., analyzed → emit WebSocket event), maintain status history
+
+---
+
+### Capability: API Services
+Provide RESTful API for frontend communication and external integrations.
+
+#### Feature: REST Endpoints
+- **Description**: Expose HTTP API for project operations
+- **Inputs**: HTTP requests (GET/POST/PUT/DELETE)
+- **Outputs**: JSON responses, HTTP status codes
+- **Behavior**: Implement CRUD operations for projects, provide search/filter endpoints, include pagination and sorting, validate request bodies with Zod schemas, return consistent error responses
+
+#### Feature: WebSocket Real-Time Updates
+- **Description**: Push live updates to connected clients
+- **Inputs**: Server events (project discovered, analysis complete, status change)
+- **Outputs**: WebSocket messages to clients
+- **Behavior**: Maintain persistent WebSocket connections, broadcast events to all connected clients, implement reconnection logic, send heartbeat pings every 30s
+
+#### Feature: API Authentication (Future)
+- **Description**: Secure API endpoints with authentication
+- **Inputs**: JWT tokens, API keys
+- **Outputs**: Authenticated request context
+- **Behavior**: Validate tokens, check permissions, rate limit per user (deferred to Phase 5+)
+
+---
+
+### Capability: System Integration (macOS)
+Enable direct system operations from the web interface.
+
+#### Feature: Reveal in Finder
+- **Description**: Open Finder and highlight the project folder
+- **Inputs**: Project path
+- **Outputs**: Finder window opened to project location
+- **Behavior**: Execute `open -R "<path>"` command, validate path is within allowed base directory, handle permission errors, return success/error status
+
+#### Feature: Open in VSCode
+- **Description**: Launch VSCode with the project folder
+- **Inputs**: Project path
+- **Outputs**: VSCode window opened with project
+- **Behavior**: Check VSCode CLI is installed (`which code`), execute `code "<path>"` command, validate path security, handle VSCode not installed error
+
+#### Feature: System Command Validation
+- **Description**: Ensure safe execution of system commands
+- **Inputs**: Project path, command type
+- **Outputs**: Validated path, security check result
+- **Behavior**: Verify path starts with configured base directory, sanitize path for command injection prevention, escape special characters, reject suspicious patterns
+
+---
+
+### Capability: Presentation Layer
+Deliver a modern, intuitive, and visually stunning user interface.
+
+#### Feature: Dashboard Overview
+- **Description**: Main view showing all projects in grid/list format
+- **Inputs**: User filters, search query, sort preference
+- **Outputs**: Rendered project cards with metadata
+- **Behavior**: Display projects in responsive grid (3-4 columns), show project name, framework icon, last modified, analysis status, implement infinite scroll or pagination, animate card entrance with Framer Motion
+
+#### Feature: Project Detail View
+- **Description**: Expanded view showing full project information and analysis
+- **Inputs**: Project ID
+- **Outputs**: Modal/page with complete project details
+- **Behavior**: Show AI-generated summary, tech stack breakdown, file structure preview, action buttons (Reveal, Open, Archive), syntax-highlighted code snippets, analysis timestamp and model used
+
+#### Feature: Search & Filter UI
+- **Description**: Interactive controls for finding projects
+- **Inputs**: User input, selected filters
+- **Outputs**: Filtered project list
+- **Behavior**: Implement search input with debouncing (300ms), multi-select filter dropdowns (framework, language, status), tag chips with colors, clear all filters button, show result count
+
+#### Feature: Real-Time Status Updates
+- **Description**: Live UI updates without manual refresh
+- **Inputs**: WebSocket events from backend
+- **Outputs**: Updated UI elements, toast notifications
+- **Behavior**: Subscribe to WebSocket events, update project cards in place when analysis completes, show toast for new project discoveries, display progress indicators for analyzing projects, gracefully handle disconnections
+
+#### Feature: Dark Futuristic Theme
+- **Description**: Visually stunning dark mode design system
+- **Inputs**: shadcn/ui components, Tailwind config
+- **Outputs**: Consistent themed interface
+- **Behavior**: Use OKLCH color space for deep blues and cyans, implement glassmorphism on cards (backdrop-blur), add glow effects on hover, use Inter/Geist fonts, smooth transitions with Framer Motion, maintain WCAG AA contrast ratios
+
+</functional-decomposition>
+
+---
+
+<structural-decomposition>
+
+## Repository Structure
+
+```
+project-viewer/
+├── frontend/                      # React + Vite application
+│   ├── src/
+│   │   ├── components/           # UI components
+│   │   │   ├── ui/              # shadcn/ui base components
+│   │   │   ├── ProjectCard.tsx
+│   │   │   ├── ProjectDetail.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   └── SearchFilters.tsx
+│   │   ├── pages/
+│   │   │   ├── HomePage.tsx
+│   │   │   └── ProjectPage.tsx
+│   │   ├── hooks/
+│   │   │   ├── useProjects.ts
+│   │   │   ├── useWebSocket.ts
+│   │   │   └── useSearch.ts
+│   │   ├── lib/
+│   │   │   ├── api.ts           # API client
+│   │   │   └── utils.ts
+│   │   ├── stores/
+│   │   │   └── projectStore.ts  # Zustand store
+│   │   └── App.tsx
+│   ├── Dockerfile
+│   └── package.json
+│
+├── backend/                       # Node.js API server
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── projects.ts
+│   │   │   └── system.ts
+│   │   ├── services/
+│   │   │   ├── discovery.ts     # Project discovery logic
+│   │   │   ├── metadata.ts      # Metadata extraction
+│   │   │   ├── database.ts      # Database operations
+│   │   │   └── system.ts        # macOS commands
+│   │   ├── workers/
+│   │   │   └── analyzer.ts      # Claude API worker
+│   │   ├── websocket/
+│   │   │   └── server.ts
+│   │   └── server.ts
+│   ├── prisma/
+│   │   └── schema.prisma
+│   ├── Dockerfile
+│   ├── Dockerfile.worker
+│   └── package.json
+│
+├── file-watcher/                  # File system monitoring service
+│   ├── src/
+│   │   ├── watcher.ts
+│   │   └── validator.ts
+│   ├── Dockerfile
+│   └── package.json
+│
+├── shared/                        # Shared TypeScript types
+│   └── types.ts
+│
+├── docker-compose.yml
+├── .env.example
+├── nginx/
+│   └── nginx.conf
+└── README.md
+```
+
+## Module Definitions
+
+### Module: File Watcher Service
+- **Maps to capability**: Project Discovery
+- **Responsibility**: Monitor file system and emit project discovery events
+- **File structure**:
+  ```
+  file-watcher/
+  ├── src/
+  │   ├── watcher.ts      # Chokidar implementation
+  │   ├── validator.ts    # Project validation logic
+  │   └── index.ts
+  └── Dockerfile
+  ```
+- **Exports**:
+  - `ProjectWatcher` class - Main watcher with event emitter
+  - `validateProject(path)` - Check if directory is a valid project
+- **Events Emitted**:
+  - `project:added` - New project folder detected
+  - `project:removed` - Project folder deleted
+  - `error` - File system error
+
+### Module: Backend API
+- **Maps to capability**: API Services, Data Management, System Integration
+- **Responsibility**: REST API, WebSocket server, business logic orchestration
+- **File structure**:
+  ```
+  backend/src/
+  ├── routes/
+  │   ├── projects.ts     # CRUD operations
+  │   └── system.ts       # macOS integrations
+  ├── services/
+  │   ├── discovery.ts
+  │   ├── metadata.ts
+  │   ├── database.ts
+  │   └── system.ts
+  ├── websocket/
+  │   └── server.ts
+  └── server.ts
+  ```
+- **Exports**:
+  - REST API at port 3000
+  - WebSocket server at `/ws`
+  - Health check at `/health`
+
+### Module: Worker Service
+- **Maps to capability**: AI-Powered Analysis
+- **Responsibility**: Background job processing with Claude API integration
+- **File structure**:
+  ```
+  backend/src/workers/
+  ├── analyzer.ts         # BullMQ worker + Claude API
+  ├── cache.ts           # Redis caching layer
+  └── queue.ts           # Job queue setup
+  ```
+- **Exports**:
+  - `AnalysisWorker` class - Process analysis jobs
+  - `queueProjectAnalysis(path)` - Add job to queue
+  - `getCachedAnalysis(hash)` - Check cache
+
+### Module: Frontend Application
+- **Maps to capability**: Presentation Layer
+- **Responsibility**: User interface and client-side logic
+- **File structure**:
+  ```
+  frontend/src/
+  ├── components/         # React components
+  ├── pages/             # Page-level components
+  ├── hooks/             # Custom React hooks
+  ├── lib/               # API client, utilities
+  ├── stores/            # State management
+  └── App.tsx
+  ```
+- **Exports**:
+  - React SPA served at port 3001
+  - `/` - Dashboard page
+  - `/project/:id` - Project detail page
+
+### Module: Database (Prisma)
+- **Maps to capability**: Data Management
+- **Responsibility**: Data persistence, schema management, migrations
+- **File structure**:
+  ```
+  backend/prisma/
+  ├── schema.prisma      # Database schema
+  └── migrations/        # Version-controlled migrations
+  ```
+- **Exports**:
+  - Prisma Client instance
+  - Type-safe database models
+
+</structural-decomposition>
+
+---
+
+<dependency-graph>
+
+## Dependency Chain
+
+### Foundation Layer (Phase 0)
+No dependencies - these must be built first.
+
+- **Docker Infrastructure**: Provides containerization for all services
+- **Database Schema**: Defines data models (Prisma schema.prisma)
+- **Shared Types**: TypeScript interfaces shared across services
+- **Environment Configuration**: .env files, config loading
+
+### Data Layer (Phase 1)
+- **File Watcher Service**: Depends on [Docker Infrastructure, Shared Types]
+  - Monitors file system independently
+  - Emits events to Redis pub/sub
+
+- **Database Migrations**: Depends on [Database Schema, Docker Infrastructure]
+  - Creates tables and indexes in PostgreSQL
+
+- **Redis Setup**: Depends on [Docker Infrastructure]
+  - Cache and job queue infrastructure
+
+### Processing Layer (Phase 2)
+- **Metadata Extractor**: Depends on [Shared Types, Database Migrations]
+  - Reads project files and extracts information
+
+- **Worker Service (Claude Integration)**: Depends on [Redis Setup, Database Migrations, Metadata Extractor]
+  - Processes background jobs
+  - Calls Claude API
+  - Stores results in database
+
+### API Layer (Phase 3)
+- **Backend REST API**: Depends on [Database Migrations, Metadata Extractor, Worker Service]
+  - Provides HTTP endpoints
+  - Queues analysis jobs
+  - Queries database
+
+- **WebSocket Server**: Depends on [Backend REST API, Redis Setup]
+  - Real-time event broadcasting
+  - Listens to Redis pub/sub
+
+- **System Integration Service**: Depends on [Backend REST API]
+  - macOS command execution
+  - Path validation
+
+### Presentation Layer (Phase 4)
+- **Frontend API Client**: Depends on [Backend REST API]
+  - HTTP and WebSocket client wrappers
+
+- **UI Components**: Depends on [Shared Types]
+  - shadcn/ui setup
+  - Base component library
+
+- **Frontend Application**: Depends on [Frontend API Client, UI Components]
+  - Full React application
+  - Routing, state management
+  - Complete user interface
+
+### Integration Layer (Phase 5)
+- **End-to-End Flow**: Depends on [File Watcher Service, Worker Service, Backend REST API, Frontend Application]
+  - Complete user journey
+  - File detection → Analysis → Display
+
+- **Production Optimization**: Depends on [End-to-End Flow]
+  - Nginx reverse proxy
+  - Performance tuning
+  - Monitoring and logging
+
+</dependency-graph>
+
+---
+
+<implementation-roadmap>
+
+## Development Phases
+
+### Phase 0: Foundation
+**Goal**: Set up project infrastructure and database schema
+
+**Entry Criteria**: Clean repository initialized with git
+
+**Tasks**:
+- [ ] Initialize project structure (depends on: none)
+  - Acceptance criteria: All directories created, package.json files exist
+  - Test strategy: Verify folder structure matches design
+
+- [ ] Create docker-compose.yml with all services (depends on: none)
+  - Acceptance criteria: Docker Compose validates, services defined (postgres, redis, backend, frontend, worker, file-watcher)
+  - Test strategy: `docker compose config` validates without errors
+
+- [ ] Define Prisma database schema (depends on: none)
+  - Acceptance criteria: schema.prisma includes Project, ProjectAnalysis, Tag models with correct relations and indexes
+  - Test strategy: `npx prisma validate` succeeds
+
+- [ ] Create shared TypeScript types (depends on: none)
+  - Acceptance criteria: Types for Project, Analysis, API responses defined
+  - Test strategy: TypeScript compilation succeeds
+
+- [ ] Set up environment configuration (depends on: none)
+  - Acceptance criteria: .env.example with all required variables, config loading utilities
+  - Test strategy: Load config in test environment, verify all keys present
+
+**Exit Criteria**:
+- Docker Compose starts all containers without errors
+- Prisma migrations can be generated
+- TypeScript types are importable across modules
+
+**Delivers**: Working development environment ready for feature implementation
+
+---
+
+### Phase 1: Data Discovery
+**Goal**: Detect new projects and extract metadata
+
+**Entry Criteria**: Phase 0 complete
+
+**Tasks**:
+- [ ] Implement Chokidar file watcher (depends on: [Docker Infrastructure, Shared Types])
+  - Acceptance criteria: Watcher detects new folders within 1s, emits events to Redis pub/sub
+  - Test strategy: Create test folder, verify event emission; test debouncing with rapid changes
+
+- [ ] Build project validation logic (depends on: [Shared Types])
+  - Acceptance criteria: Correctly identifies valid projects (has package.json, etc.), rejects non-projects
+  - Test strategy: Unit tests with 10 valid and 10 invalid directories
+
+- [ ] Create metadata extraction service (depends on: [Shared Types, Database Migrations])
+  - Acceptance criteria: Extracts name, framework, language, package manager from project files
+  - Test strategy: Test with React, Vue, Next.js, Python, Rust projects
+
+- [ ] Implement database persistence for discovered projects (depends on: [Database Migrations, Metadata Extractor])
+  - Acceptance criteria: Projects saved to database with status "discovered"
+  - Test strategy: Integration test - discover project, verify database record
+
+- [ ] Run Prisma migrations (depends on: [Database Schema])
+  - Acceptance criteria: PostgreSQL database has all tables and indexes
+  - Test strategy: Query schema, verify tables exist
+
+**Exit Criteria**:
+- New project folders are automatically detected
+- Project metadata is extracted and stored in database
+- System handles 50+ projects without performance issues
+
+**Delivers**: Automatic project discovery pipeline from file system to database
+
+---
+
+### Phase 2: AI Analysis
+**Goal**: Integrate Claude API and process projects in background
+
+**Entry Criteria**: Phase 1 complete (projects being discovered and stored)
+
+**Tasks**:
+- [ ] Set up Redis and BullMQ job queue (depends on: [Redis Setup])
+  - Acceptance criteria: Queue accepts jobs, processes with concurrency limit
+  - Test strategy: Add 10 test jobs, verify they process with max 5 concurrent
+
+- [ ] Implement project context builder (depends on: [Metadata Extractor])
+  - Acceptance criteria: Generates structured prompt with project info, limits to 10K tokens
+  - Test strategy: Test with small and large projects, verify token limits
+
+- [ ] Integrate Claude API with rate limiting (depends on: [Worker Service])
+  - Acceptance criteria: Successfully calls Claude API, handles 429 errors with backoff, uses prompt caching
+  - Test strategy: Mock API responses, test rate limit handling, verify cache headers
+
+- [ ] Implement analysis caching in Redis (depends on: [Redis Setup, Claude API])
+  - Acceptance criteria: Cache hit returns immediately, cache miss triggers API call, 24h TTL
+  - Test strategy: Analyze same project twice, verify second call uses cache
+
+- [ ] Create analysis worker service (depends on: [BullMQ Setup, Claude API, Database])
+  - Acceptance criteria: Worker processes jobs from queue, stores results in database, updates project status
+  - Test strategy: Queue 5 projects, verify all analyzed and stored correctly
+
+- [ ] Add retry logic and error handling (depends on: [Worker Service])
+  - Acceptance criteria: Failed jobs retry 3x with exponential backoff, errors logged
+  - Test strategy: Simulate API failures, verify retry behavior
+
+**Exit Criteria**:
+- Projects are automatically analyzed after discovery
+- Claude API integration is robust (handles rate limits, errors)
+- Analysis results are cached effectively
+- System can process 10 projects/minute
+
+**Delivers**: Fully automated AI-powered project analysis pipeline
+
+---
+
+### Phase 3: API Layer
+**Goal**: Build REST API and WebSocket server for frontend
+
+**Entry Criteria**: Phase 2 complete (analysis working)
+
+**Tasks**:
+- [ ] Create Express/Fastify server with routes (depends on: [Docker Infrastructure])
+  - Acceptance criteria: Server starts on port 3000, health check endpoint responds
+  - Test strategy: Hit `/health`, verify 200 response
+
+- [ ] Implement project CRUD endpoints (depends on: [Database Migrations, Backend Server])
+  - Acceptance criteria: GET /projects (list), GET /projects/:id (detail), PUT /projects/:id (update), DELETE /projects/:id (archive)
+  - Test strategy: Integration tests for all CRUD operations
+
+- [ ] Add search and filter endpoints (depends on: [Database])
+  - Acceptance criteria: GET /projects/search?q=react&framework=react&status=analyzed works
+  - Test strategy: Query with various filters, verify correct results
+
+- [ ] Build WebSocket server for real-time updates (depends on: [Backend Server, Redis])
+  - Acceptance criteria: Clients can connect, receive events when projects are discovered/analyzed
+  - Test strategy: Connect client, trigger project discovery, verify event received
+
+- [ ] Implement macOS system integration endpoints (depends on: [Backend Server])
+  - Acceptance criteria: POST /projects/:id/reveal (Finder), POST /projects/:id/open (VSCode)
+  - Test strategy: Call endpoints, verify Finder/VSCode open (requires macOS)
+
+- [ ] Add request validation with Zod (depends on: [Backend Routes])
+  - Acceptance criteria: Invalid requests return 400 with error details
+  - Test strategy: Send malformed requests, verify validation errors
+
+**Exit Criteria**:
+- REST API provides all required operations
+- WebSocket pushes real-time updates
+- API is documented (OpenAPI spec)
+- Integration tests pass for all endpoints
+
+**Delivers**: Complete backend API ready for frontend integration
+
+---
+
+### Phase 4: Frontend UI
+**Goal**: Build sleek, modern dashboard with dark futuristic theme
+
+**Entry Criteria**: Phase 3 complete (API available)
+
+**Tasks**:
+- [ ] Set up React + Vite project (depends on: [Docker Infrastructure])
+  - Acceptance criteria: Vite dev server runs, hot reload works
+  - Test strategy: Run `npm run dev`, verify page loads
+
+- [ ] Configure shadcn/ui with Tailwind (depends on: [React Setup])
+  - Acceptance criteria: shadcn/ui components importable, dark theme configured with OKLCH colors
+  - Test strategy: Render sample components, verify styling
+
+- [ ] Create API client with hooks (depends on: [Backend API])
+  - Acceptance criteria: useProjects hook fetches data, useWebSocket connects and receives events
+  - Test strategy: Mock API responses, test hooks in isolation
+
+- [ ] Build ProjectCard component (depends on: [shadcn/ui, API Client])
+  - Acceptance criteria: Displays project name, framework icon, status badge, last modified
+  - Test strategy: Render with test data, verify all fields display
+
+- [ ] Build Dashboard page with grid layout (depends on: [ProjectCard])
+  - Acceptance criteria: Shows all projects in responsive grid (3-4 columns), animates card entrance
+  - Test strategy: Render with 20 projects, verify layout and animations
+
+- [ ] Implement search and filter UI (depends on: [Dashboard, API Client])
+  - Acceptance criteria: Search input updates results in real-time, multi-select filters work
+  - Test strategy: Type search query, select filters, verify API calls made
+
+- [ ] Create ProjectDetail modal (depends on: [shadcn/ui, API Client])
+  - Acceptance criteria: Shows full analysis, tech stack, action buttons (Reveal, Open)
+  - Test strategy: Click project card, verify modal opens with correct data
+
+- [ ] Add real-time updates with WebSocket (depends on: [WebSocket Client, Dashboard])
+  - Acceptance criteria: New projects appear automatically, status updates in real-time, toast notifications
+  - Test strategy: Discover new project, verify it appears without refresh
+
+- [ ] Implement dark futuristic theme (depends on: [All UI Components])
+  - Acceptance criteria: Glassmorphism cards, glow effects on hover, smooth animations, WCAG AA contrast
+  - Test strategy: Visual review, lighthouse accessibility audit
+
+**Exit Criteria**:
+- Dashboard displays all projects beautifully
+- Search and filters work smoothly
+- Real-time updates function without refresh
+- UI is responsive (mobile, tablet, desktop)
+- Theme is production-quality "show-off ready"
+
+**Delivers**: Complete user interface for project management
+
+---
+
+### Phase 5: Integration & Polish
+**Goal**: End-to-end testing, optimization, production readiness
+
+**Entry Criteria**: Phase 4 complete (full stack functional)
+
+**Tasks**:
+- [ ] End-to-end user flow testing (depends on: [Frontend, Backend, Worker, File Watcher])
+  - Acceptance criteria: Create new project folder → Auto-discovered → Analyzed → Appears in UI → Click to open in VSCode (full flow works)
+  - Test strategy: Playwright E2E tests for critical paths
+
+- [ ] Set up Nginx reverse proxy (depends on: [Frontend, Backend])
+  - Acceptance criteria: Single port (80) serves both frontend and API, WebSocket proxying works
+  - Test strategy: Access via nginx, verify routing
+
+- [ ] Implement error boundaries and fallbacks (depends on: [Frontend])
+  - Acceptance criteria: API errors show user-friendly messages, offline state handled gracefully
+  - Test strategy: Simulate API failures, verify UI resilience
+
+- [ ] Add loading states and skeletons (depends on: [Frontend])
+  - Acceptance criteria: Skeleton loaders during data fetch, progress indicators for analyzing projects
+  - Test strategy: Throttle network, verify loading states appear
+
+- [ ] Performance optimization (depends on: [All Services])
+  - Acceptance criteria: Dashboard loads in < 1s, search responds in < 100ms, 90+ Lighthouse score
+  - Test strategy: Lighthouse audit, load testing with 200+ projects
+
+- [ ] Add logging and monitoring (depends on: [Backend, Worker])
+  - Acceptance criteria: Winston logger configured, errors logged with context, performance metrics tracked
+  - Test strategy: Trigger errors, verify logs captured
+
+- [ ] Create README with setup instructions (depends on: none)
+  - Acceptance criteria: Clear docker compose up instructions, environment variable documentation
+  - Test strategy: Fresh clone, follow README, verify setup works
+
+**Exit Criteria**:
+- All user flows work end-to-end
+- Performance meets success metrics
+- Error handling is robust
+- Documentation is complete
+- System is production-ready
+
+**Delivers**: Fully functional, polished, production-ready application
+
+</implementation-roadmap>
+
+---
+
+<test-strategy>
+
+## Test Pyramid
+
+```
+        /\
+       /E2E\       ← 10% (End-to-end, critical user flows)
+      /------\
+     /Integration\ ← 20% (API endpoints, database, service interactions)
+    /------------\
+   /  Unit Tests  \ ← 70% (Fast, isolated, deterministic)
+  /----------------\
+```
+
+## Coverage Requirements
+- Line coverage: 80% minimum
+- Branch coverage: 75% minimum
+- Function coverage: 85% minimum
+- Critical paths: 100% coverage (analysis worker, API endpoints)
+
+## Critical Test Scenarios
+
+### File Watcher Service
+**Happy path**:
+- New project folder created → Event emitted within 1s
+- Expected: `project:added` event with correct path
+
+**Edge cases**:
+- Rapid folder creation (5 folders in 1s) → Debouncing works
+- Expected: 5 distinct events after 2s stabilization
+- Hidden folders (.git, .vscode) → Ignored
+- Expected: No events emitted
+
+**Error cases**:
+- Permission denied on directory → Error logged, service continues
+- Expected: Error event emitted, watcher still running
+- Invalid path (deleted immediately) → Graceful handling
+- Expected: No crash, error logged
+
+**Integration points**:
+- Watcher → Redis pub/sub → Backend receives event
+- Expected: End-to-end event flow in < 2s
+
+### Claude API Worker
+**Happy path**:
+- Valid project queued → Analysis completes in 5-30s
+- Expected: Analysis saved to database, cache populated, WebSocket event emitted
+
+**Edge cases**:
+- Very large project (10K files) → Prompt limited to 10K tokens
+- Expected: Analysis completes without timeout
+- Empty project (no files) → Minimal analysis
+- Expected: Returns "empty project" summary
+
+**Error cases**:
+- API rate limit (429) → Exponential backoff and retry
+- Expected: Job retries after delay, eventually succeeds
+- API timeout → Job fails after 3 attempts
+- Expected: Project status set to "error", error logged
+- Invalid API key → Immediate failure
+- Expected: Clear error message, no retries
+
+**Integration points**:
+- Job queue → Worker → Claude API → Database → WebSocket
+- Expected: Complete flow with proper status updates
+
+### Backend REST API
+**Happy path**:
+- GET /projects → Returns all projects with pagination
+- Expected: JSON array, 200 status, correct pagination headers
+
+**Edge cases**:
+- Search with special characters → Escaped properly
+- Expected: No SQL injection, correct results
+- Filter with no results → Empty array
+- Expected: 200 status, empty array, not 404
+
+**Error cases**:
+- Invalid project ID → 404 error
+- Expected: Clear error message
+- Malformed request body → 400 validation error
+- Expected: Zod validation errors detailed
+
+**Integration points**:
+- Frontend → API → Database → Response
+- Expected: < 50ms for cached queries
+
+### Frontend Dashboard
+**Happy path**:
+- Load dashboard → Projects displayed in grid
+- Expected: All projects render, animations smooth
+
+**Edge cases**:
+- 500+ projects → Pagination or infinite scroll works
+- Expected: No performance degradation
+- Empty state (no projects) → Helpful message
+- Expected: "No projects found" with illustration
+
+**Error cases**:
+- API unreachable → Offline state shown
+- Expected: User-friendly error message
+- WebSocket disconnected → Reconnects automatically
+- Expected: Toast notification, reconnects within 5s
+
+**Integration points**:
+- Dashboard → API → WebSocket → Real-time updates
+- Expected: New projects appear without refresh
+
+## Test Generation Guidelines
+
+1. **Unit Tests**: Focus on pure functions (metadata extraction, validation, caching logic)
+2. **Integration Tests**: Test API endpoints with real database (use Docker testcontainers)
+3. **E2E Tests**: Use Playwright for critical flows (discovery → analysis → display)
+4. **Mock Strategy**: Mock Claude API in tests (use fixtures), mock file system for watcher tests
+5. **Parallelization**: Run unit tests in parallel, integration tests sequentially
+6. **CI/CD**: All tests must pass before merge, run on every PR
+7. **Performance Tests**: Load test API with 1000 concurrent requests, verify response times
+8. **Accessibility Tests**: Lighthouse audit, axe-core for WCAG compliance
+
+</test-strategy>
+
+---
+
+<architecture>
+
+## System Components
+
+### Frontend (React + Vite)
+- **Responsibility**: User interface, client-side state management, API communication
+- **Technology**: React 18, Vite 5, shadcn/ui, Tailwind CSS v4, Zustand, TanStack Query, Framer Motion
+- **Communication**: HTTP (REST), WebSocket (real-time updates)
+
+### Backend API Server (Node.js + Fastify)
+- **Responsibility**: REST API, WebSocket server, request validation, orchestration
+- **Technology**: Node.js 20 LTS, Fastify, Prisma ORM, Zod validation, ws (WebSocket)
+- **Communication**: HTTP server (port 3000), PostgreSQL queries, Redis pub/sub
+
+### Worker Service (BullMQ)
+- **Responsibility**: Background job processing, Claude API integration, analysis caching
+- **Technology**: BullMQ, Anthropic SDK, Redis
+- **Communication**: Redis job queue, PostgreSQL writes, Claude API calls
+
+### File Watcher Service (Chokidar)
+- **Responsibility**: File system monitoring, project discovery events
+- **Technology**: Chokidar v4, Redis pub/sub
+- **Communication**: File system events, Redis pub/sub
+
+### PostgreSQL Database
+- **Responsibility**: Persistent data storage, relational queries, full-text search
+- **Technology**: PostgreSQL 16, Prisma migrations
+- **Schema**: Projects, ProjectAnalyses, Tags (see detailed schema below)
+
+### Redis
+- **Responsibility**: Job queue, caching, pub/sub messaging
+- **Technology**: Redis 7
+- **Usage**: BullMQ queues, analysis cache (24h TTL), event pub/sub
+
+### Nginx (Optional)
+- **Responsibility**: Reverse proxy, SSL termination, load balancing
+- **Technology**: Nginx Alpine
+- **Configuration**: Route /api → backend:3000, / → frontend:80
+
+## Data Models
+
+### Prisma Schema
+
+```prisma
+model Project {
+  id              String   @id @default(cuid())
+  name            String
+  path            String   @unique
+  description     String?
+
+  // Metadata
+  framework       String?  // "React", "Next.js", "Vue", etc.
+  language        String?  // "TypeScript", "JavaScript", "Python"
+  packageManager  String?  // "npm", "yarn", "pnpm"
+
+  // File stats
+  fileCount       Int?
+  lastModified    DateTime?
+  size            BigInt?  // bytes
+
+  // Status
+  status          ProjectStatus @default(DISCOVERED)
+  isActive        Boolean  @default(true)
+
+  // Timestamps
+  discoveredAt    DateTime @default(now())
+  analyzedAt      DateTime?
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  analyses        ProjectAnalysis[]
+  tags            Tag[]
+
+  @@index([status])
+  @@index([discoveredAt])
+  @@map("projects")
+}
+
+model ProjectAnalysis {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Claude analysis
+  summary         String   @db.Text
+  techStack       Json     // { frontend: [], backend: [], database: [] }
+  complexity      String?  // "simple", "moderate", "complex"
+  recommendations Json?
+
+  // Metadata
+  model           String   // "claude-3-5-sonnet-20241022"
+  tokensUsed      Int?
+  cacheHit        Boolean  @default(false)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+
+  @@index([projectId])
+  @@map("project_analyses")
+}
+
+model Tag {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  color           String?   // hex color
+  projects        Project[]
+
+  @@map("tags")
+}
+
+enum ProjectStatus {
+  DISCOVERED      // Just found
+  QUEUED          // Queued for analysis
+  ANALYZING       // Currently analyzing
+  ANALYZED        // Analysis complete
+  ERROR           // Analysis failed
+  ARCHIVED        // User archived
+}
+```
+
+## Technology Stack
+
+### Frontend
+- **React 18/19**: Component framework
+- **Vite 5**: Build tool and dev server
+- **shadcn/ui**: UI component library (built on Radix UI)
+- **Tailwind CSS v4**: Utility-first styling with OKLCH colors
+- **Zustand**: Lightweight state management (3KB)
+- **TanStack Query**: Server state management, caching
+- **Framer Motion**: Animations and transitions
+- **Lucide React**: Icon library
+
+**Decision: shadcn/ui over Material UI**
+- **Rationale**: Full customization, components in codebase, perfect for dark themes, modern OKLCH color space
+- **Trade-offs**: Need to build more components yourself vs. out-of-the-box MUI components
+- **Alternatives considered**: Material UI (too opinionated), Chakra UI (performance), Radix UI primitives (too low-level)
+
+### Backend
+- **Node.js 20 LTS**: Runtime environment
+- **Fastify**: Web framework (2x faster than Express)
+- **Prisma**: Type-safe ORM with migrations
+- **BullMQ**: Redis-based job queue
+- **Zod**: Schema validation
+- **Anthropic SDK**: Claude API client
+- **ws**: WebSocket library
+
+**Decision: Fastify over Express**
+- **Rationale**: 2x faster, better TypeScript support, schema-based validation, modern plugin system
+- **Trade-offs**: Smaller ecosystem than Express, different middleware patterns
+- **Alternatives considered**: Express (slower, less TS support), Nest.js (too heavyweight), Hono (too new)
+
+**Decision: Prisma over TypeORM**
+- **Rationale**: Better type safety, great migration workflow, intuitive API, excellent VS Code support
+- **Trade-offs**: Can be slower than raw SQL for complex queries
+- **Alternatives considered**: TypeORM (complex), Drizzle (newer, less mature), Sequelize (outdated)
+
+### Infrastructure
+- **PostgreSQL 16**: Primary database
+- **Redis 7**: Cache and job queue
+- **Docker Compose**: Multi-container orchestration
+- **Chokidar v4**: File system watcher
+
+**Decision: PostgreSQL over MongoDB**
+- **Rationale**: Relational data (projects → analyses), full-text search, JSONB for flexibility, strong consistency
+- **Trade-offs**: More rigid schema, migrations required
+- **Alternatives considered**: MongoDB (less structure), SQLite (single-user only)
+
+**Decision: Docker Compose over Kubernetes**
+- **Rationale**: Local development, simpler setup, sufficient for single-machine deployment
+- **Trade-offs**: Can't scale across multiple machines
+- **Alternatives considered**: Kubernetes (overkill), systemd services (less portable)
+
+</architecture>
+
+---
+
+<risks>
+
+## Technical Risks
+
+**Risk**: Claude API rate limits blocking analysis
+- **Impact**: High - Users experience delays in getting project summaries
+- **Likelihood**: Medium - Depends on usage volume and API tier
+- **Mitigation**:
+  - Implement BullMQ with strict rate limiting (10 req/min)
+  - Cache all responses for 24h in Redis
+  - Use prompt caching to reduce API usage by 90%
+  - Queue jobs with exponential backoff
+- **Fallback**: Show "Analysis pending" state, allow manual retry, consider fallback to simpler regex-based analysis
+
+**Risk**: File system performance degradation with 1000+ projects
+- **Impact**: Medium - Discovery and monitoring slow down
+- **Likelihood**: Low - Chokidar handles large directories well
+- **Mitigation**:
+  - Limit watch depth to 1 (only top-level folders)
+  - Implement ignore patterns for node_modules, .git
+  - Monitor memory usage, add alerts
+- **Fallback**: Hybrid approach - watch only active projects, poll database for others
+
+**Risk**: Docker volume mount permissions on macOS
+- **Impact**: Medium - File watcher can't read project directories
+- **Likelihood**: Medium - macOS Ventura+ have stricter permissions
+- **Mitigation**:
+  - Clear documentation in README about granting Docker access
+  - Validate volume mounts on startup, show error if inaccessible
+  - Provide troubleshooting guide
+- **Fallback**: Manual project import via API endpoint
+
+**Risk**: WebSocket connection instability
+- **Impact**: Low - Real-time updates may not reach clients
+- **Likelihood**: Low - WebSockets are mature technology
+- **Mitigation**:
+  - Implement automatic reconnection with exponential backoff
+  - Send heartbeat pings every 30s
+  - Fallback to HTTP polling if WebSocket fails
+- **Fallback**: Manual refresh button, periodic polling
+
+**Risk**: Large project analysis timeout (very large codebases)
+- **Impact**: Medium - Some projects never get analyzed
+- **Likelihood**: Low - Most projects are < 1000 files
+- **Mitigation**:
+  - Implement 60s timeout per analysis
+  - Sample files if project too large (top 100 most relevant files)
+  - Allow manual re-analysis with custom parameters
+- **Fallback**: Show "Project too large" status, provide basic metadata only
+
+## Dependency Risks
+
+**Risk**: Anthropic API changes breaking integration
+- **Impact**: High - Core feature stops working
+- **Likelihood**: Low - SDK is stable
+- **Mitigation**:
+  - Pin SDK version in package.json
+  - Write integration tests that catch API changes
+  - Monitor Anthropic changelog
+- **Fallback**: Temporary disable analysis, use cached summaries, add manual summary input
+
+**Risk**: Chokidar or other npm package vulnerabilities
+- **Impact**: Medium - Security vulnerabilities in dependencies
+- **Likelihood**: Medium - npm packages have regular security updates
+- **Mitigation**:
+  - Run `npm audit` in CI/CD
+  - Enable Dependabot for automatic PRs
+  - Review dependencies quarterly
+- **Fallback**: Update packages promptly, find alternatives if unmaintained
+
+**Risk**: VSCode CLI not installed on user's machine
+- **Impact**: Low - "Open in VSCode" button doesn't work
+- **Likelihood**: Medium - Not all devs have CLI installed
+- **Mitigation**:
+  - Check for `code` command on startup
+  - Show helpful error with installation instructions
+  - Provide alternative (reveal in Finder + manual open)
+- **Fallback**: Graceful error message, link to VSCode CLI installation guide
+
+## Scope Risks
+
+**Risk**: Feature creep (adding too many nice-to-have features)
+- **Impact**: High - Project never reaches MVP, timeline extends
+- **Likelihood**: High - Temptation to add filters, charts, integrations
+- **Mitigation**:
+  - Strict adherence to RPG phases
+  - Define "nice to have" list for Phase 6+
+  - Timebox each phase, move to next regardless
+- **Fallback**: Cut Phase 5 polish tasks, ship Phase 4 as v1.0
+
+**Risk**: Underestimating Docker complexity
+- **Impact**: Medium - More time spent on DevOps than expected
+- **Likelihood**: Medium - Docker networking and volumes have gotchas
+- **Mitigation**:
+  - Build docker-compose.yml in Phase 0
+  - Test full stack early
+  - Use docker compose watch for faster iteration
+- **Fallback**: Simplify to fewer containers initially (monolith in Phase 1-3)
+
+**Risk**: UI/UX taking longer than expected
+- **Impact**: Medium - Phase 4 extends, delays completion
+- **Likelihood**: Medium - Dark theme polish is time-consuming
+- **Mitigation**:
+  - Use shadcn/ui templates for faster development
+  - Start with basic theme, polish iteratively
+  - Timebox animation work
+- **Fallback**: Ship with simpler theme first, enhance later
+
+</risks>
+
+---
+
+<appendix>
+
+## References
+
+- **RPG Paper**: Microsoft Research Repository Planning Graph
+- **Anthropic Docs**: https://docs.anthropic.com/claude/docs
+- **Prompt Caching**: https://docs.anthropic.com/claude/docs/prompt-caching
+- **Chokidar**: https://github.com/paulmillr/chokidar
+- **BullMQ**: https://docs.bullmq.io/
+- **shadcn/ui**: https://ui.shadcn.com/
+- **Prisma**: https://www.prisma.io/docs
+- **Fastify**: https://fastify.dev/
+- **Docker Compose Spec**: https://docs.docker.com/compose/compose-file/
+
+## Glossary
+
+- **RPG**: Repository Planning Graph - methodology for structured planning
+- **Claude**: Anthropic's AI assistant API (claude-3-5-sonnet-20241022)
+- **Prompt Caching**: Anthropic feature to reduce API costs by caching repeated prompts
+- **BullMQ**: Redis-based job queue for Node.js
+- **Chokidar**: File system watcher library
+- **Prisma**: TypeScript ORM with schema-first workflow
+- **shadcn/ui**: Component library built on Radix UI primitives
+- **OKLCH**: Perceptual color space better suited for dark themes than RGB/HSL
+- **Glassmorphism**: UI design trend with frosted glass effect (backdrop-blur)
+- **TDD**: Test-Driven Development
+- **WCAG**: Web Content Accessibility Guidelines
+
+## Open Questions
+
+1. **Multi-user support**: Should multiple users be able to access the dashboard? (Decision: Defer to Phase 6+, single-user for MVP)
+
+2. **Project tagging**: Manual or automatic? (Decision: Both - auto-tag by framework, allow manual tags)
+
+3. **Analysis re-run**: Automatically re-analyze when project changes? (Decision: Manual trigger only for MVP, auto-reanalysis in Phase 6+)
+
+4. **Export functionality**: Should users be able to export project summaries? (Decision: Nice to have, Phase 6+)
+
+5. **GitHub integration**: Fetch README from GitHub if available? (Decision: Defer to Phase 7+, local files only for MVP)
+
+6. **Performance monitoring**: Built-in or external tool? (Decision: Winston logging for MVP, Prometheus/Grafana in future)
+
+7. **Database backups**: How often and where? (Decision: Docker volume backups via script, document in README)
+
+8. **Authentication**: JWT, OAuth, or none? (Decision: None for MVP - localhost only, add in Phase 6+ if needed)
+
+</appendix>
+
+---
+
+<task-master-integration>
+
+# How Task Master Will Parse This PRD
+
+When you run `task-master parse-prd .taskmaster/docs/prd_rpg.txt`, the parser will:
+
+1. **Extract capabilities** → Main tasks
+   - Project Discovery
+   - AI-Powered Analysis
+   - Data Management
+   - API Services
+   - System Integration
+   - Presentation Layer
+
+2. **Extract features** → Subtasks
+   - Each capability's features become subtasks
+   - Example: "Project Discovery" task has subtasks "File System Monitoring", "Project Metadata Extraction", "Project Validation"
+
+3. **Parse dependencies** → Task dependencies
+   - Foundation Layer tasks have no dependencies
+   - Data Layer tasks depend on Foundation
+   - Processing Layer depends on Data Layer
+   - Creates topological execution order
+
+4. **Order by phases** → Task priorities
+   - Phase 0 tasks = highest priority (foundation)
+   - Phase 1-5 tasks = sequenced by dependency chain
+   - Ensures correct build order
+
+5. **Use test strategy** → Test generation context
+   - Feeds test scenarios to test generators
+   - Defines coverage requirements
+   - Specifies critical paths
+
+**Result**: 6 main tasks (capabilities) with 20+ subtasks (features), properly dependency-ordered across 5 development phases.
+
+## Why This RPG Structure Enables Success
+
+**Traditional PRD problems**:
+- ❌ Build API before database exists → Errors
+- ❌ Work on UI before backend ready → Waiting
+- ❌ Unclear what depends on what → Confusion
+- ❌ Tasks blocked by hidden dependencies → Delays
+
+**RPG PRD solutions**:
+- ✅ Database schema defined in Phase 0 → API can use it in Phase 3
+- ✅ Backend complete in Phase 3 → Frontend starts Phase 4 with working API
+- ✅ Explicit dependency graph → Know exactly what to build when
+- ✅ Topological ordering → Never blocked by missing dependencies
+
+## Recommended Workflow
+
+```bash
+# 1. Parse this PRD into tasks
+task-master parse-prd .taskmaster/docs/prd_rpg.txt
+
+# 2. Analyze complexity
+task-master analyze-complexity --research
+
+# 3. Expand tasks that need more detail
+task-master expand --all --research
+
+# 4. Start building, phase by phase
+task-master next  # Get next task (will be Phase 0)
+
+# 5. Mark complete as you go
+task-master set-status --id=1.1 --status=done
+
+# 6. Log learnings during implementation
+task-master update-subtask --id=1.1 --prompt="Docker Compose networking required host.docker.internal for macOS"
+```
+
+## Tips for Best Results
+
+1. **Follow the phases strictly**: Don't jump to Phase 4 (UI) before Phase 3 (API) is done
+2. **Test at each phase boundary**: Verify Phase N works before starting Phase N+1
+3. **Use research mode**: `--research` flag leverages AI for better task refinement
+4. **Log as you build**: Use `update-subtask` to document gotchas and decisions
+5. **Expand complex tasks**: If a task feels too big, use `expand --id=X --research`
+6. **Update the PRD**: If you discover new requirements, parse a supplemental PRD with `--append`
+
+</task-master-integration>

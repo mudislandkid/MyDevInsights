@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, monospace;
+
+  /* Border radius */
+  --radius: 0.5rem;
+
+  /* Modern dark theme colors using OKLCH - much lighter and more visible */
+  --color-background: oklch(0.20 0.015 264);
+  --color-foreground: oklch(0.98 0.005 264);
+
+  --color-primary: oklch(0.72 0.24 250);
+  --color-primary-foreground: oklch(0.99 0.005 250);
+
+  --color-secondary: oklch(0.35 0.025 264);
+  --color-secondary-foreground: oklch(0.96 0.008 264);
+
+  --color-accent: oklch(0.68 0.20 200);
+  --color-accent-foreground: oklch(0.99 0.005 200);
+
+  --color-muted: oklch(0.28 0.02 264);
+  --color-muted-foreground: oklch(0.75 0.015 264);
+
+  --color-card: oklch(0.27 0.015 264);
+  --color-card-foreground: oklch(0.97 0.005 264);
+
+  --color-popover: oklch(0.28 0.015 264);
+  --color-popover-foreground: oklch(0.97 0.005 264);
+
+  --color-border: oklch(0.38 0.02 264);
+  --color-input: oklch(0.32 0.02 264);
+  --color-ring: oklch(0.72 0.24 250);
+
+  --color-destructive: oklch(0.60 0.24 25);
+  --color-destructive-foreground: oklch(0.98 0.01 25);
+
+  /* Chart colors for visualizations */
+  --color-chart-1: oklch(0.65 0.25 240);
+  --color-chart-2: oklch(0.60 0.20 200);
+  --color-chart-3: oklch(0.70 0.20 160);
+  --color-chart-4: oklch(0.75 0.15 120);
+  --color-chart-5: oklch(0.68 0.22 280);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    margin: 0;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(100, 150, 255, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(100, 200, 255, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(120, 255, 200, 0.05) 0px, transparent 50%);
+  }
+}
+
+@layer utilities {
+  /* Apple-style glassmorphism effect */
+  .glass {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Subtle glow effect */
+  .glow {
+    box-shadow:
+      0 0 20px rgba(100, 150, 255, 0.15),
+      0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+
+  .glow-hover:hover {
+    box-shadow:
+      0 0 30px rgba(100, 150, 255, 0.25),
+      0 8px 16px -2px rgba(0, 0, 0, 0.4),
+      0 4px 6px -1px rgba(100, 150, 255, 0.1);
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+  }
+
+  /* Apple-style rotating border glow effect */
+  .card-glow-border {
+    position: relative;
+    border-radius: 0.875rem;
+    padding: 1px;
+    background: transparent;
+    height: fit-content;
+    overflow: hidden;
+  }
+
+  .card-glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -120px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(120, 170, 255, 0.25) 280deg,
+      rgba(100, 200, 255, 0.5) 330deg,
+      rgba(100, 220, 255, 0.65) 350deg,
+      rgba(100, 220, 255, 0.65) 10deg,
+      rgba(100, 200, 255, 0.5) 30deg,
+      rgba(120, 255, 200, 0.35) 70deg,
+      transparent 100deg
+    );
+    border-radius: inherit;
+    animation: rotate-border 8s linear infinite;
+    opacity: 0.9;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: blur(14px);
+  }
+
+  .card-glow-border:hover::before {
+    opacity: 0.9;
+  }
+
+  .card-glow-border > * {
+    position: relative;
+    z-index: 1;
+    background: var(--color-card);
+    border-radius: calc(0.9rem - 1px);
+    overflow: hidden;
+    border: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes rotate-border {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

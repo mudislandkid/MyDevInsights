@@ -1,0 +1,169 @@
+# Project Viewer - Docker Compose Configuration
+# Multi-service architecture for project discovery and AI-powered analysis
+
+services:
+  # PostgreSQL Database - Primary data store
+  postgres:
+    image: postgres:15-alpine
+    container_name: project-viewer-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-projectviewer}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - project-viewer-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Redis - Cache and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: project-viewer-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - project-viewer-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # Backend API Server - REST + WebSocket
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: project-viewer-backend
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - BACKEND_PORT=${BACKEND_PORT:-3000}
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      # Mount projects directory (read-only for security)
+      - ${PROJECTS_PATH:-/tmp/projects}:/projects:ro
+    networks:
+      - project-viewer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run dev
+    restart: unless-stopped
+
+  # Analyzer Worker - Background jobs with Claude API
+  analyzer-worker:
+    build:
+      context: ./analyzer-worker
+      dockerfile: Dockerfile.dev
+    container_name: project-viewer-worker
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-1}
+    env_file:
+      - .env
+    volumes:
+      - ./analyzer-worker:/app
+      - /app/node_modules
+      # Mount projects directory (read-only)
+      - ${PROJECTS_PATH:-/tmp/projects}:/projects:ro
+    networks:
+      - project-viewer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run dev
+    restart: unless-stopped
+
+  # File Watcher Service - Monitors project directories
+  file-watcher:
+    build:
+      context: ./file-watcher
+      dockerfile: Dockerfile
+    container_name: project-viewer-file-watcher
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - WATCH_PATH=${WATCH_PATH:-/projects}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
+      - STARTUP_DELAY=${STARTUP_DELAY:-5000}
+    env_file:
+      - .env
+    volumes:
+      - ./file-watcher:/app
+      - /app/node_modules
+      # Mount projects directory (read-only)
+      - ${PROJECTS_PATH:-/tmp/projects}:/projects:ro
+    networks:
+      - project-viewer-network
+    depends_on:
+      backend:
+        condition: service_healthy  # Wait for backend to be fully healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: npm run dev
+    restart: unless-stopped
+
+  # Frontend Application - React + Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: project-viewer-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:3000/ws}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - project-viewer-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# Named volumes for persistent data
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# Custom bridge network for inter-service communication
+networks:
+  project-viewer-network:
+    driver: bridge
+    name: project-viewer-network
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

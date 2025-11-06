@@ -1,0 +1,22 @@
+{
+  "name": "@project-viewer/shared",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for Project Viewer services",
+  "main": "types/index.js",
+  "types": "types/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf types/*.js types/*.d.ts"
+  },
+  "keywords": [
+    "typescript",
+    "types",
+    "shared"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

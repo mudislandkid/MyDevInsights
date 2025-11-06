@@ -1,0 +1,28 @@
+# Analyzer Worker Dockerfile
+# Dedicated container for background job processing
+
+FROM node:20-alpine AS base
+
+# Install dependencies required for Prisma
+RUN apk add --no-cache openssl libc6-compat
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY prisma ./prisma/
+
+# Install dependencies
+RUN npm ci
+
+# Generate Prisma Client
+RUN npx prisma generate
+
+# Copy source code
+COPY src ./src
+
+# No health check for worker (uses process monitoring)
+
+# Development command (will be overridden by docker-compose)
+CMD ["npm", "run", "worker"]

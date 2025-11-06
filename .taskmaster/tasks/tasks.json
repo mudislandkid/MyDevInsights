@@ -1,0 +1,1024 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Set up project foundation and Docker infrastructure",
+        "description": "Initialize the multi-service architecture with Docker Compose, shared TypeScript types, and environment configuration for all services (frontend, backend, worker, file-watcher, PostgreSQL, Redis)",
+        "details": "Create docker-compose.yml with services: postgres (port 5432), redis (port 6379), backend (port 3000), frontend (port 3001), file-watcher, and analyzer-worker. Set up shared/ directory with TypeScript types for Project, ProjectAnalysis, Tag, API responses, and WebSocket events. Configure environment variables for all API keys (Anthropic, Perplexity, OpenAI, etc.). Create .env.example with all required variables. Ensure all containers can communicate via Docker network.",
+        "testStrategy": "Verify docker-compose config validates without errors, all services start successfully, shared types compile in TypeScript, environment configuration loads correctly in test environment",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Docker Compose configuration with all services",
+            "description": "Set up docker-compose.yml file with complete service definitions for postgres, redis, backend, frontend, file-watcher, and analyzer-worker containers with proper port mappings and configurations",
+            "dependencies": [],
+            "details": "Create docker-compose.yml in project root with version 3.8+. Define postgres service with image postgres:15, port 5432, volume for data persistence. Configure redis service with image redis:7-alpine, port 6379. Set up backend service with Node.js base image, port 3000, volume mounts for code. Configure frontend service with Node.js, port 3001. Add file-watcher and analyzer-worker services with appropriate configurations. Include health checks for database services.",
+            "status": "done",
+            "testStrategy": "Run 'docker-compose config' to validate YAML syntax, execute 'docker-compose up' to verify all services start without errors, check port accessibility with curl/telnet, verify container logs show successful initialization",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T10:41:36.359Z"
+          },
+          {
+            "id": 2,
+            "title": "Set up shared TypeScript types directory and configurations",
+            "description": "Create shared/ directory structure with TypeScript type definitions for Project, ProjectAnalysis, Tag, API responses, and WebSocket events that all services can import",
+            "dependencies": [],
+            "details": "Create shared/types directory at project root. Define index.ts with exported interfaces for Project (matching Prisma schema), ProjectAnalysis, Tag models. Create api-types.ts with request/response interfaces for all API endpoints. Add websocket-events.ts with event type definitions for real-time communication. Set up shared/package.json with TypeScript as dependency. Configure tsconfig.json for shared types with composite: true for project references.",
+            "status": "done",
+            "testStrategy": "Run 'tsc --noEmit' in shared directory to verify type compilation, import types in a test file to confirm module resolution, verify no circular dependencies with madge tool",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T10:43:21.678Z"
+          },
+          {
+            "id": 3,
+            "title": "Configure environment variables and create .env.example",
+            "description": "Set up comprehensive environment configuration for all services including database connections, Redis URLs, API keys for AI services, and application-specific settings",
+            "dependencies": [],
+            "details": "Create .env.example file with all required variables: DATABASE_URL for PostgreSQL connection, REDIS_URL for Redis, API keys (ANTHROPIC_API_KEY, PERPLEXITY_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, XAI_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY), service ports (BACKEND_PORT=3000, FRONTEND_PORT=3001), NODE_ENV, LOG_LEVEL. Add comments explaining each variable's purpose. Create .env file locally with actual values. Update docker-compose.yml to use env_file directive.",
+            "status": "done",
+            "testStrategy": "Verify .env.example includes all required variables with descriptive comments, test environment loading in Node.js with dotenv, confirm Docker Compose correctly interpolates variables, validate no secrets in version control",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T10:44:38.113Z"
+          },
+          {
+            "id": 4,
+            "title": "Configure Docker networking and inter-service communication",
+            "description": "Set up Docker network configuration to ensure all containers can communicate internally while exposing only necessary ports to the host system",
+            "dependencies": [
+              1
+            ],
+            "details": "Define custom bridge network 'project-viewer-network' in docker-compose.yml. Configure all services to use this network. Set up internal service names for container-to-container communication (postgres:5432 internally, redis:6379 internally). Configure depends_on directives for proper startup order. Add network aliases for services. Ensure frontend can reach backend API, backend can reach postgres/redis, workers can access redis pub/sub. Document internal vs external port mappings.",
+            "status": "done",
+            "testStrategy": "Use 'docker-compose exec backend ping postgres' to verify connectivity, test API calls from frontend to backend container, verify Redis pub/sub between file-watcher and workers, check network isolation with docker network inspect",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T10:45:59.494Z"
+          },
+          {
+            "id": 5,
+            "title": "Create verification scripts and initial testing setup",
+            "description": "Develop comprehensive verification scripts to validate the entire Docker infrastructure setup including service health checks, connectivity tests, and basic integration verification",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Create scripts/verify-setup.sh bash script that checks all services are running with 'docker-compose ps'. Add health check endpoints in backend service (/health). Create test-connectivity.js Node script to verify database connection, Redis connection, and inter-service API calls. Add docker-compose.test.yml for isolated testing environment. Include README with setup instructions and troubleshooting guide. Create Makefile with common commands (make up, make down, make logs, make test).",
+            "status": "done",
+            "testStrategy": "Run verification script to confirm all containers healthy, execute connectivity tests to validate service communication, perform end-to-end test creating a dummy project entry, verify logs show no errors during startup",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T10:48:55.147Z"
+          }
+        ],
+        "complexity": 4,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into: 1) Docker Compose configuration with all services, 2) Shared TypeScript types setup, 3) Environment variable configuration and .env.example, 4) Docker networking setup, 5) Verification and testing setup",
+        "updatedAt": "2025-11-05T10:48:55.147Z"
+      },
+      {
+        "id": "2",
+        "title": "Design and implement PostgreSQL database schema with Prisma",
+        "description": "Create comprehensive database schema with Project, ProjectAnalysis, and Tag models, including proper indexes, relationships, and migrations for efficient querying and full-text search",
+        "details": "Design Prisma schema with Project model (id, name, path, framework, language, packageManager, fileCount, lastModified, status enum, timestamps), ProjectAnalysis model (summary, techStack JSON, complexity, recommendations, model used, tokensUsed, cacheHit), Tag model with many-to-many relation to Projects. Add indexes on status, discoveredAt, projectId. Include ProjectStatus enum (DISCOVERED, QUEUED, ANALYZING, ANALYZED, ERROR, ARCHIVED). Set up Prisma migrations and database connection in Docker.",
+        "testStrategy": "Validate schema with 'npx prisma validate', run migrations successfully, test CRUD operations on all models, verify indexes improve query performance, test full-text search functionality",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and create comprehensive Prisma schema models",
+            "description": "Define all database models including Project, ProjectAnalysis, and Tag entities with proper field types, constraints, and the ProjectStatus enum",
+            "dependencies": [],
+            "details": "Create schema.prisma file with Project model containing all specified fields (id as UUID, name, path, framework, language, packageManager, fileCount Int, lastModified DateTime, status ProjectStatus enum, createdAt/updatedAt timestamps). Define ProjectAnalysis model with one-to-one relation to Project including summary String, techStack Json, complexity String, recommendations String[], modelUsed String, tokensUsed Int, cacheHit Boolean. Create Tag model with many-to-many relation to Projects using implicit relation table. Define ProjectStatus enum with values: DISCOVERED, QUEUED, ANALYZING, ANALYZED, ERROR, ARCHIVED.",
+            "status": "done",
+            "testStrategy": "Run 'npx prisma validate' to ensure schema syntax is correct, verify all models compile without errors, check that field types match PostgreSQL data types",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T11:43:41.362Z"
+          },
+          {
+            "id": 2,
+            "title": "Configure database indexes and optimize relationships",
+            "description": "Add strategic indexes for query optimization and configure proper cascading rules for all relationships between models",
+            "dependencies": [
+              1
+            ],
+            "details": "Add @@index on Project model for status field to optimize filtering by project status. Create composite index on [status, discoveredAt] for sorted queries. Add @@index on projectId in ProjectAnalysis for fast lookups. Configure full-text search index on Project.name and ProjectAnalysis.summary fields using PostgreSQL tsvector. Set up cascading delete rules so ProjectAnalysis is deleted when Project is removed. Configure the _ProjectToTag implicit relation table with proper indexes on both foreign keys for efficient many-to-many queries.",
+            "status": "done",
+            "testStrategy": "Use EXPLAIN ANALYZE on key queries to verify index usage, test cascade deletes work correctly, benchmark query performance with and without indexes using 1000+ test records",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T11:44:15.716Z"
+          },
+          {
+            "id": 3,
+            "title": "Set up Prisma migrations and Docker PostgreSQL connection",
+            "description": "Configure database connection string, initialize Prisma migrations, and integrate with Docker Compose PostgreSQL service",
+            "dependencies": [
+              2
+            ],
+            "details": "Configure DATABASE_URL environment variable with PostgreSQL connection string (postgresql://user:password@localhost:5432/projectviewer). Add .env file handling with dotenv. Update docker-compose.yml to include PostgreSQL service with proper volumes for data persistence. Run 'npx prisma migrate dev --name init' to create initial migration. Set up shadow database for development. Configure Prisma client generation in package.json postinstall script. Add migration commands to npm scripts for easy deployment.",
+            "status": "done",
+            "testStrategy": "Verify Docker PostgreSQL starts correctly and persists data across restarts, run migrations on fresh database successfully, test connection from application to database, verify Prisma client generates without errors",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T11:49:23.677Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement and test comprehensive CRUD operations",
+            "description": "Create data access layer with all CRUD operations for Projects, ProjectAnalysis, and Tags including batch operations and transactions",
+            "dependencies": [
+              3
+            ],
+            "details": "Implement ProjectRepository class with methods: createProject, findProjectByPath, updateProjectStatus, getProjectsWithAnalysis (includes related data), bulkCreateProjects, deleteProject. Create AnalysisRepository with saveAnalysis, getAnalysisByProjectId, updateAnalysisCache methods. Implement TagRepository with createTag, addTagsToProject, getProjectsByTag, getPopularTags methods. Add transaction support for operations that modify multiple tables. Implement pagination helpers for list queries with cursor-based pagination. Add proper error handling with custom database exceptions.",
+            "status": "done",
+            "testStrategy": "Write unit tests for each CRUD operation with Jest, test transaction rollback on failures, verify unique constraints are enforced, test pagination with 100+ records, test concurrent operations don't cause conflicts",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T11:52:07.842Z"
+          }
+        ],
+        "complexity": 3,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Break down into: 1) Design and create Prisma schema models, 2) Configure indexes and relationships, 3) Set up migrations and database connection, 4) Implement and test CRUD operations",
+        "updatedAt": "2025-11-05T11:52:07.842Z"
+      },
+      {
+        "id": "3",
+        "title": "Build file system monitoring service with Chokidar",
+        "description": "Implement real-time project discovery service that watches specified directories for new projects, validates them, and emits events to Redis pub/sub for processing",
+        "details": "Create file-watcher service using Chokidar v4 to monitor base directory (depth 1 only) for new folder creation. Implement debouncing (2s stability threshold) to handle rapid changes. Add project validation logic to identify valid development projects (check for package.json, requirements.txt, Cargo.toml, go.mod, etc.). Exclude system folders (.git, node_modules, .DS_Store). Emit 'project:added' and 'project:removed' events to Redis pub/sub. Handle permission errors gracefully and continue monitoring.",
+        "testStrategy": "Test new folder detection within 1s, verify debouncing with rapid folder creation (5 folders in 1s), confirm project validation correctly identifies valid/invalid projects with 10 test cases each, test Redis event emission and error handling for permission denied scenarios",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Chokidar with depth-limited directory watching",
+            "description": "Initialize Chokidar v4 file watcher to monitor the base directory with depth limit of 1, configuring proper event handlers for add and unlink events",
+            "dependencies": [],
+            "details": "Install Chokidar v4 and configure watcher instance with depth:1 option to only monitor immediate subdirectories. Set up event listeners for 'addDir' and 'unlinkDir' events. Configure ignored patterns to exclude system folders like .git, node_modules, .DS_Store, and hidden directories. Implement basic logging for watched directory changes.",
+            "status": "done",
+            "testStrategy": "Unit test watcher initialization with mock file system, verify depth limitation works correctly, test that nested subdirectories are ignored, confirm system folders are excluded from monitoring",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:28:21.518Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement debouncing mechanism for file system events",
+            "description": "Create a debouncing system with 2-second stability threshold to handle rapid file system changes and prevent excessive processing",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a debounce utility using setTimeout/clearTimeout pattern with 2000ms delay. Create event queue to batch rapid changes and process them after stability period. Handle edge cases like multiple rapid creates/deletes of the same directory. Ensure debounced events maintain correct order and don't lose important state changes.",
+            "status": "done",
+            "testStrategy": "Test rapid folder creation (5 folders in 1 second) and verify only final stable state is processed, test alternating add/remove events, verify 2s delay is respected, test edge cases with same folder multiple operations",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:28:26.888Z"
+          },
+          {
+            "id": 3,
+            "title": "Build multi-language project validation logic",
+            "description": "Implement comprehensive validation to identify valid development projects by checking for language-specific configuration files and package manifests",
+            "dependencies": [
+              2
+            ],
+            "details": "Create validation functions to check for: package.json (Node.js), requirements.txt or pyproject.toml (Python), Cargo.toml (Rust), go.mod (Go), pom.xml or build.gradle (Java), composer.json (PHP), Gemfile (Ruby). Implement priority-based detection when multiple indicators exist. Add minimum file count threshold to avoid false positives. Return detected project type and metadata.",
+            "status": "done",
+            "testStrategy": "Create test fixtures for each language type with minimal valid project structure, test projects with multiple language indicators, verify false positives are rejected, test edge cases with empty or malformed config files",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:28:27.646Z"
+          },
+          {
+            "id": 4,
+            "title": "Integrate Redis pub/sub for event emission",
+            "description": "Connect to Redis and implement event publishing for project:added and project:removed events with proper message formatting and error handling",
+            "dependencies": [
+              3
+            ],
+            "details": "Set up Redis client connection with retry logic and connection pooling. Create event payload structure with project path, type, metadata, and timestamp. Implement publish methods for 'project:added' and 'project:removed' channels. Add connection error handling with automatic reconnection. Include event queuing for offline scenarios to prevent data loss.",
+            "status": "done",
+            "testStrategy": "Mock Redis client to test event publishing, verify correct message format and channel usage, test connection failure scenarios and retry logic, test event queuing when Redis is unavailable",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:28:28.393Z"
+          },
+          {
+            "id": 5,
+            "title": "Implement error handling and permission management",
+            "description": "Add comprehensive error handling for file system permissions, access denied scenarios, and other potential failures with graceful recovery",
+            "dependencies": [
+              4
+            ],
+            "details": "Implement try-catch blocks around file system operations with specific error type handling. Create permission check utility to pre-validate directory access. Log permission errors without stopping the watcher. Implement exponential backoff for retrying failed operations. Add health check endpoint to monitor service status. Create error recovery strategies for common failure scenarios.",
+            "status": "done",
+            "testStrategy": "Test with directories having different permission levels, simulate EACCES and ENOENT errors, verify service continues after permission errors, test recovery mechanisms work correctly, verify health endpoint reports accurate status",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:28:29.141Z"
+          },
+          {
+            "id": 6,
+            "title": "Create comprehensive test suite for monitoring service",
+            "description": "Develop unit and integration tests covering all monitoring scenarios including edge cases, performance, and cross-platform compatibility",
+            "dependencies": [
+              5
+            ],
+            "details": "Write unit tests for each component (watcher, debouncer, validator, Redis publisher). Create integration tests simulating real file system operations. Add performance tests to verify monitoring handles 100+ directories efficiently. Test cross-platform compatibility (Windows path handling, case sensitivity). Include stress tests with rapid file system changes. Mock external dependencies for isolated testing.",
+            "status": "done",
+            "testStrategy": "Achieve 90% code coverage with unit tests, integration tests pass on Linux/Mac/Windows, performance tests confirm < 100ms response time for new projects, stress tests handle 1000 rapid changes without crashes",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:28:29.925Z"
+          }
+        ],
+        "complexity": 5,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into: 1) Chokidar setup with depth-limited watching, 2) Debouncing implementation for file system events, 3) Project validation logic for multiple languages, 4) Redis pub/sub integration, 5) Error handling and permission management, 6) Testing with various scenarios",
+        "updatedAt": "2025-11-05T13:28:29.925Z"
+      },
+      {
+        "id": "4",
+        "title": "Create project metadata extraction and database persistence",
+        "description": "Build service to extract project metadata from package.json, README, and other config files, then persist discovered projects to PostgreSQL with proper status management",
+        "details": "Implement metadata extraction service that reads package.json for dependencies and framework detection, scans for config files (vite.config, tsconfig, tailwind.config), counts files recursively (excluding node_modules). Detect framework (React, Next.js, Vue, Svelte, etc.) from dependencies and config files. Extract language (TypeScript/JavaScript from tsconfig, Python from requirements.txt). Determine package manager from lock files. Create database service with Prisma to persist projects with status DISCOVERED. Handle concurrent updates with transactions.",
+        "testStrategy": "Test metadata extraction with React, Vue, Next.js, Python, Rust, and Go projects, verify correct framework/language detection, test file counting accuracy, confirm database persistence with proper status, test concurrent project creation",
+        "priority": "medium",
+        "dependencies": [
+          "2",
+          "3"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create package.json parser and dependency analyzer service",
+            "description": "Build a service to parse package.json files and analyze dependencies for framework detection and metadata extraction",
+            "dependencies": [],
+            "details": "Implement a TypeScript service that reads package.json files, extracts name, version, description, scripts, dependencies, and devDependencies. Parse dependency objects to identify frameworks (React, Vue, Angular, Svelte, Next.js) and build tools (Vite, Webpack, Rollup). Handle missing or malformed package.json gracefully with proper error handling and default values.",
+            "status": "pending",
+            "testStrategy": "Unit test with sample package.json files from React, Vue, Next.js projects. Test malformed JSON handling, missing fields, and edge cases like monorepo configurations",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement framework detection from dependencies and config files",
+            "description": "Create a framework detection system that analyzes both dependencies and configuration files to accurately identify the project framework",
+            "dependencies": [
+              1
+            ],
+            "details": "Build detection logic that checks for framework-specific dependencies (react, vue, @angular/core, svelte) and config files (next.config.js, nuxt.config.js, angular.json, svelte.config.js, vite.config.ts). Implement priority-based detection where config files take precedence over dependencies. Support detection of multiple frameworks in monorepos and return primary framework with confidence score.",
+            "status": "pending",
+            "testStrategy": "Test with real-world projects using different frameworks. Verify correct detection priority when multiple indicators present. Test monorepo scenarios with multiple frameworks",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Build language detection from file extensions and config files",
+            "description": "Develop a language detection service that analyzes file extensions, config files, and project structure to determine primary programming language",
+            "dependencies": [],
+            "details": "Implement file extension analysis to count .js, .ts, .jsx, .tsx, .py, .rs, .go files. Check for language-specific config files (tsconfig.json for TypeScript, requirements.txt/pyproject.toml for Python, Cargo.toml for Rust, go.mod for Go). Calculate language percentages based on file counts and return primary language with confidence level. Handle polyglot projects by returning top languages.",
+            "status": "pending",
+            "testStrategy": "Test with projects in JavaScript, TypeScript, Python, Rust, and Go. Verify polyglot detection returns correct primary language. Test edge cases with mixed language projects",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Create package manager detection from lock files",
+            "description": "Build a service to detect the package manager used in a project by analyzing lock files and configuration",
+            "dependencies": [],
+            "details": "Implement detection logic for npm (package-lock.json), yarn (yarn.lock), pnpm (pnpm-lock.yaml), and bun (bun.lockb). Check for workspace configurations (.npmrc, .yarnrc, .pnpmfile.cjs). Return detected package manager with version if available from lock file metadata. Handle cases where multiple lock files exist by checking modification times and returning most recently used.",
+            "status": "pending",
+            "testStrategy": "Test detection with projects using npm, yarn, pnpm, and bun. Verify correct handling of multiple lock files. Test workspace detection for monorepos",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Implement recursive file counting with configurable exclusions",
+            "description": "Create an efficient file counting service that recursively counts project files while respecting exclusion patterns",
+            "dependencies": [],
+            "details": "Build recursive file counter using Node.js fs module with streaming for large directories. Implement default exclusions (node_modules, .git, dist, build, coverage, .next, .nuxt). Support custom exclusion patterns from .gitignore. Count total files, directories, and calculate project size. Implement performance optimizations with parallel processing for large projects. Add timeout protection for extremely large repositories.",
+            "status": "pending",
+            "testStrategy": "Test with small, medium, and large projects. Verify exclusion patterns work correctly. Test performance with projects containing 10K+ files. Verify timeout handling for massive repositories",
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "Build Prisma database service for project persistence",
+            "description": "Create a comprehensive database service using Prisma to persist project metadata with proper error handling and data validation",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Implement Prisma service with methods for createProject, updateProject, findProject, and bulkUpsert. Create DTOs for data validation before database operations. Implement proper error handling for unique constraints and foreign key violations. Add support for partial updates and optimistic locking with version fields. Include database connection pooling and retry logic for transient failures. Set project status to DISCOVERED on creation.",
+            "status": "pending",
+            "testStrategy": "Integration tests with test database for CRUD operations. Test constraint violations and error handling. Verify connection pooling under load. Test bulk operations with 100+ projects",
+            "parentId": "undefined"
+          },
+          {
+            "id": 7,
+            "title": "Implement concurrent update handling with database transactions",
+            "description": "Build transaction management system to handle concurrent project updates safely with proper isolation and deadlock prevention",
+            "dependencies": [
+              6
+            ],
+            "details": "Implement transaction wrapper using Prisma's interactive transactions with proper isolation levels. Add optimistic concurrency control using version fields to prevent lost updates. Implement retry logic with exponential backoff for deadlock scenarios. Create queue-based update system to serialize conflicting updates. Add monitoring for transaction duration and deadlock frequency. Implement batch processing for bulk updates to minimize lock contention.",
+            "status": "pending",
+            "testStrategy": "Stress test with concurrent updates to same project. Test deadlock detection and recovery. Verify data consistency after concurrent operations. Test transaction rollback on failures",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 7,
+        "expansionPrompt": "Break down into: 1) Package.json parser and dependency analyzer, 2) Framework detection from dependencies and configs, 3) Language detection from file extensions and configs, 4) Package manager detection from lock files, 5) Recursive file counting with exclusions, 6) Prisma database service implementation, 7) Concurrent update handling with transactions",
+        "updatedAt": "2025-11-05T14:02:24.335Z"
+      },
+      {
+        "id": "5",
+        "title": "Implement Claude API integration with caching and job queue",
+        "description": "Build background worker service using BullMQ to process AI analysis jobs with Claude API, including prompt caching, rate limiting, and Redis-based result caching",
+        "details": "Set up BullMQ job queue with Redis for project analysis jobs. Implement project context builder that reads README, package.json, and key source files, limiting total content to 10K tokens for API efficiency. Integrate Anthropic SDK with prompt caching enabled, exponential backoff for rate limits (10 jobs/min), and 60s timeout per analysis. Implement Redis caching with project hash + last modified as key and 24h TTL. Add retry logic (3 attempts with exponential backoff) and comprehensive error handling. Store analysis results in ProjectAnalysis table and emit WebSocket events on completion.",
+        "testStrategy": "Test successful Claude API calls with prompt caching, verify rate limit handling with 429 responses, test caching hit/miss scenarios, confirm job queue processes with max 5 concurrent workers, test retry logic with simulated failures, verify analysis storage and WebSocket event emission",
+        "priority": "high",
+        "dependencies": [
+          "2"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up BullMQ with Redis configuration for job processing",
+            "description": "Configure BullMQ job queue system with Redis connection, worker setup, and job definitions for AI analysis tasks",
+            "dependencies": [],
+            "details": "Install BullMQ and Redis dependencies. Create queue configuration with Redis connection settings from environment variables. Set up job queue named 'ai-analysis' with default job options including removeOnComplete (100 jobs) and removeOnFail (50 jobs). Configure worker with concurrency limit of 5 and implement basic job processor structure. Create job types interface for ProjectAnalysisJob with projectId, projectPath, and forceRefresh fields.",
+            "status": "done",
+            "testStrategy": "Test Redis connection establishment, verify queue creation, test job addition and retrieval, confirm worker processes jobs with correct concurrency limit",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:09.300Z"
+          },
+          {
+            "id": 2,
+            "title": "Build project context extraction service with token limiting",
+            "description": "Create service to read project files (README, package.json, source files) and build context within 10K token limit for Claude API",
+            "dependencies": [],
+            "details": "Implement ProjectContextBuilder class that reads README.md, package.json, and identifies key source files (index.ts, main.py, app.tsx). Use tiktoken or similar library to count tokens accurately. Implement smart truncation strategy prioritizing README first, then package.json, then main source files. Build context object with structured sections for project description, dependencies, and code samples. Include file path resolution and error handling for missing files.",
+            "status": "done",
+            "testStrategy": "Test token counting accuracy, verify context stays under 10K limit, test with projects of varying sizes, confirm prioritization logic works correctly",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:09.978Z"
+          },
+          {
+            "id": 3,
+            "title": "Integrate Anthropic SDK with prompt caching configuration",
+            "description": "Set up Anthropic Claude SDK with proper authentication, prompt caching enabled, and structured prompt templates for project analysis",
+            "dependencies": [
+              2
+            ],
+            "details": "Install and configure @anthropic-ai/sdk with API key from environment variables. Enable prompt caching in SDK configuration for cost optimization. Create prompt templates for project analysis including sections for summary, tech stack identification, complexity assessment, and recommendations. Implement ClaudeService class with analyzeProject method that constructs prompts with project context. Configure model selection (claude-3-opus or claude-3-sonnet) and max tokens for responses.",
+            "status": "done",
+            "testStrategy": "Mock API calls for testing, verify prompt construction, test caching headers are sent, validate response parsing",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:10.674Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement rate limiting with exponential backoff strategy",
+            "description": "Create rate limiting mechanism to handle 10 jobs/minute limit with exponential backoff for 429 responses and queue management",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Implement RateLimiter class using token bucket algorithm or sliding window for 10 requests/minute limit. Add rate limit tracking to BullMQ job processor with pre-job checks. Implement exponential backoff starting at 1s, doubling up to 32s max for 429 responses. Create queue pause/resume logic when rate limits are hit. Add metrics tracking for rate limit hits and backoff durations. Include jitter in backoff calculation to prevent thundering herd.",
+            "status": "done",
+            "testStrategy": "Test rate limiter allows exactly 10 requests per minute, verify exponential backoff calculations, test queue pausing on rate limit, confirm recovery after backoff period",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:11.366Z"
+          },
+          {
+            "id": 5,
+            "title": "Create Redis caching layer with TTL and invalidation",
+            "description": "Implement Redis-based caching system for API responses with project hash + last modified as key and 24-hour TTL management",
+            "dependencies": [
+              3
+            ],
+            "details": "Create CacheService class with Redis client for storing analysis results. Generate cache keys using project path hash + last modified timestamp. Implement get/set operations with 24-hour TTL (86400 seconds). Add cache invalidation logic when project files change. Create cache hit/miss metrics tracking. Implement cache warming strategy for frequently accessed projects. Add compression for large analysis results before caching.",
+            "status": "done",
+            "testStrategy": "Test cache key generation consistency, verify TTL expiration, test cache hit/miss scenarios, confirm invalidation on file changes",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:12.071Z"
+          },
+          {
+            "id": 6,
+            "title": "Add retry logic with exponential backoff for failed jobs",
+            "description": "Implement comprehensive retry mechanism with 3 attempts using exponential backoff for transient failures in API calls or processing",
+            "dependencies": [
+              1,
+              4
+            ],
+            "details": "Configure BullMQ job retry options with 3 attempts and exponential backoff (2s, 4s, 8s delays). Implement custom retry logic distinguishing between retryable (network, timeout) and non-retryable errors (invalid API key, malformed request). Add retry attempt tracking in job data. Create dead letter queue for jobs that fail all retries. Implement retry metrics and alerting for high failure rates. Add manual retry capability for failed jobs.",
+            "status": "done",
+            "testStrategy": "Test retry attempts count correctly, verify backoff timing, test different error types handling, confirm dead letter queue functionality",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:12.746Z"
+          },
+          {
+            "id": 7,
+            "title": "Implement error handling and timeout management system",
+            "description": "Create comprehensive error handling with proper error classification, timeout management (60s per analysis), and graceful degradation",
+            "dependencies": [
+              3,
+              6
+            ],
+            "details": "Implement timeout wrapper for API calls with 60-second limit using AbortController or promise race. Create error classification system (APIError, NetworkError, ValidationError, TimeoutError). Add structured error logging with context (projectId, attempt number, error type). Implement graceful degradation for partial failures. Create error recovery strategies for different error types. Add circuit breaker pattern for repeated API failures. Store error details in ProjectAnalysis table with ERROR status.",
+            "status": "done",
+            "testStrategy": "Test timeout triggers at 60 seconds, verify error classification accuracy, test circuit breaker activation, confirm error logging completeness",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:13.417Z"
+          },
+          {
+            "id": 8,
+            "title": "Set up WebSocket event emission for real-time updates",
+            "description": "Implement WebSocket event system to notify frontend clients when analysis jobs complete, fail, or update status",
+            "dependencies": [
+              1,
+              7
+            ],
+            "details": "Create WebSocket event emitter service integrated with BullMQ job events. Emit events for job status changes (queued, processing, completed, failed). Include analysis results in completion events with projectId and summary. Implement room-based broadcasting for project-specific updates. Add event queuing for disconnected clients. Create event types for different job states and results. Ensure proper cleanup of event listeners to prevent memory leaks.",
+            "status": "done",
+            "testStrategy": "Test WebSocket connection and event delivery, verify all job states trigger events, test client reconnection handling, confirm no memory leaks with multiple connections",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T13:51:14.097Z"
+          }
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 8,
+        "expansionPrompt": "Break down into: 1) BullMQ setup with Redis configuration, 2) Project context builder with token limiting, 3) Anthropic SDK integration with prompt caching, 4) Rate limiting implementation, 5) Redis caching layer with TTL, 6) Retry logic with exponential backoff, 7) Error handling and timeout management, 8) WebSocket event emission on completion",
+        "updatedAt": "2025-11-05T13:51:14.097Z"
+      },
+      {
+        "id": "6",
+        "title": "Build REST API server with comprehensive endpoints",
+        "description": "Create Fastify-based API server with CRUD operations, search/filtering, WebSocket support, and system integration endpoints for macOS (Finder/VSCode)",
+        "details": "Set up Fastify server on port 3000 with routes: GET /projects (list with pagination), GET /projects/:id (detail), PUT /projects/:id (update), DELETE /projects/:id (archive), GET /projects/search (with query and filters). Implement Zod validation for request bodies. Add WebSocket server at /ws for real-time updates using ws library. Create system integration endpoints: POST /projects/:id/reveal (open Finder), POST /projects/:id/open (open VSCode). Include path validation and security checks to prevent command injection. Add health check endpoint and proper error handling with consistent JSON responses.",
+        "testStrategy": "Integration tests for all CRUD operations, test search with various filters (framework, language, status), verify Zod validation rejects malformed requests, test WebSocket connections and event broadcasting, test macOS system commands (requires macOS), verify path security validation",
+        "priority": "medium",
+        "dependencies": [
+          "4",
+          "5"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize Fastify server with core middleware and configuration",
+            "description": "Set up Fastify server instance with essential middleware including CORS, compression, rate limiting, and request logging. Configure server to run on port 3000 with proper environment variable support.",
+            "dependencies": [],
+            "details": "Create src/server.ts with Fastify initialization. Add @fastify/cors for cross-origin requests from frontend, @fastify/compress for response compression, @fastify/rate-limit for API protection, and @fastify/sensible for better error handling. Configure environment variables for PORT, NODE_ENV, and API rate limits. Set up graceful shutdown handlers for SIGTERM and SIGINT signals.",
+            "status": "done",
+            "testStrategy": "Test server starts on correct port, verify CORS headers are present, confirm rate limiting works with multiple rapid requests, test graceful shutdown behavior",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:08:57.465Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement CRUD route handlers for project management",
+            "description": "Create all CRUD endpoints for projects including GET /projects (list with pagination), GET /projects/:id (detail), PUT /projects/:id (update), and DELETE /projects/:id (archive).",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement route handlers in src/routes/projects.ts. GET /projects should support pagination with limit/offset query params, sorting by multiple fields, and return total count. GET /projects/:id returns full project details with analysis data. PUT /projects/:id allows partial updates of project metadata. DELETE /projects/:id performs soft delete by setting status to ARCHIVED. All routes should use Prisma client for database operations and return consistent JSON response format.",
+            "status": "done",
+            "testStrategy": "Test pagination with various limit/offset values, verify 404 responses for non-existent projects, test partial updates preserve unchanged fields, confirm soft delete doesn't remove data from database",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:08:58.136Z"
+          },
+          {
+            "id": 3,
+            "title": "Build advanced search and filtering endpoints with query builder",
+            "description": "Develop GET /projects/search endpoint with support for text search, framework filtering, language filtering, status filtering, and date range queries using dynamic query building.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create src/routes/search.ts with advanced search logic. Implement text search using PostgreSQL full-text search capabilities via Prisma. Support multiple filter parameters: framework (array), language (array), status (array), dateFrom/dateTo for lastModified range. Build dynamic Prisma query based on provided filters. Include result highlighting for text matches. Support sorting by relevance, name, or date. Return paginated results with facet counts for each filter category.",
+            "status": "done",
+            "testStrategy": "Test text search with various query terms, verify multiple filter combinations work correctly, test date range filtering edge cases, confirm facet counts are accurate, test SQL injection prevention",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:08:58.808Z"
+          },
+          {
+            "id": 4,
+            "title": "Create comprehensive Zod validation schemas for all endpoints",
+            "description": "Define and implement Zod validation schemas for request bodies, query parameters, and path parameters across all API endpoints to ensure type safety and data integrity.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create src/schemas/validation.ts with Zod schemas for: ProjectUpdateSchema for PUT requests, PaginationSchema for list endpoints, SearchQuerySchema for search parameters, SystemCommandSchema for macOS integration endpoints. Implement validation middleware that parses requests and returns detailed error messages for validation failures. Include custom validators for file paths, ensuring they exist and are within allowed directories. Add request body size limits and string length validations.",
+            "status": "done",
+            "testStrategy": "Test validation rejects malformed JSON, verify detailed error messages for missing required fields, test boundary values for numeric inputs, confirm path validation prevents directory traversal attacks",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:08:59.496Z"
+          },
+          {
+            "id": 5,
+            "title": "Set up WebSocket server for real-time project updates",
+            "description": "Implement WebSocket server at /ws endpoint using ws library to broadcast real-time updates for project status changes, new project discoveries, and analysis completions.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create src/websocket/server.ts with WebSocket server setup using @fastify/websocket plugin. Implement connection management with client tracking and heartbeat/ping-pong for connection health. Define event types: PROJECT_DISCOVERED, PROJECT_ANALYZING, PROJECT_ANALYZED, PROJECT_ERROR, PROJECT_UPDATED. Create broadcast functions to send updates to all connected clients. Add authentication via query parameter token validation. Implement reconnection logic with exponential backoff on client side documentation.",
+            "status": "done",
+            "testStrategy": "Test multiple client connections simultaneously, verify heartbeat keeps connections alive, test broadcast reaches all connected clients, confirm disconnected clients are cleaned up, test authentication rejects invalid tokens",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:09:00.189Z"
+          },
+          {
+            "id": 6,
+            "title": "Develop macOS system integration endpoints with security",
+            "description": "Create POST endpoints for /projects/:id/reveal (open in Finder) and /projects/:id/open (open in VSCode) with comprehensive path validation and command injection prevention.",
+            "dependencies": [
+              1,
+              4
+            ],
+            "details": "Implement src/routes/system.ts with macOS-specific integrations. POST /projects/:id/reveal uses 'open' command to reveal project directory in Finder. POST /projects/:id/open launches VSCode with 'code' command. Validate project paths exist and are absolute paths within allowed base directories (no symlink following). Sanitize all inputs to prevent command injection using shell-escape library. Check if VSCode is installed before attempting to open. Return appropriate error messages for missing applications or invalid paths. Add rate limiting specific to these endpoints.",
+            "status": "done",
+            "testStrategy": "Test path validation rejects paths outside allowed directories, verify command injection attempts are blocked, test with non-existent project paths, confirm rate limiting prevents abuse, test on non-macOS systems returns appropriate errors",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:09:00.893Z"
+          },
+          {
+            "id": 7,
+            "title": "Implement security middleware and comprehensive error handling",
+            "description": "Add security headers, input sanitization, error handling middleware, health check endpoint, and consistent error response formatting across the entire API server.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "details": "Install and configure @fastify/helmet for security headers (CSP, HSTS, X-Frame-Options). Implement global error handler in src/middleware/errorHandler.ts that catches all errors and returns consistent JSON format with error codes, messages, and stack traces (dev only). Add request ID generation for error tracking. Create GET /health endpoint returning server status, database connection state, and Redis availability. Implement input sanitization to prevent XSS in user-provided data. Add request/response logging with sensitive data masking. Configure CORS properly for production domain.",
+            "status": "done",
+            "testStrategy": "Test security headers are present in all responses, verify error handler catches and formats various error types, test health endpoint reflects actual service status, confirm sensitive data is masked in logs, test XSS prevention in various input fields",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:09:01.588Z"
+          }
+        ],
+        "complexity": 5,
+        "recommendedSubtasks": 7,
+        "expansionPrompt": "Break down into: 1) Fastify server setup with middleware, 2) CRUD route implementations, 3) Search and filter endpoints with query building, 4) Zod validation schemas, 5) WebSocket server setup, 6) System integration endpoints for macOS, 7) Security and path validation",
+        "updatedAt": "2025-11-05T14:09:01.588Z"
+      },
+      {
+        "id": "7",
+        "title": "Develop React frontend with shadcn/ui and dark futuristic theme",
+        "description": "Build modern React application using Vite, shadcn/ui components, Tailwind CSS with OKLCH colors, implementing dashboard, search, real-time updates, and stunning dark theme with glassmorphism effects",
+        "details": "Set up React 18 with Vite 5, configure shadcn/ui with Tailwind CSS v4 using OKLCH color space for deep blues and cyans. Create ProjectCard component with glassmorphism (backdrop-blur), glow effects on hover, framework icons, and status badges. Build Dashboard page with responsive grid layout (3-4 columns), infinite scroll/pagination for 500+ projects, and Framer Motion animations for card entrance. Implement SearchFilters component with debounced search input (300ms), multi-select dropdowns for framework/language/status, and tag chips. Add ProjectDetail modal with full AI summary, tech stack breakdown, and action buttons. Set up Zustand store for state management and TanStack Query for server state. Implement WebSocket client with automatic reconnection and toast notifications for real-time updates.",
+        "testStrategy": "Test component rendering with various project data, verify responsive design on mobile/tablet/desktop, test search debouncing and filter functionality, confirm WebSocket connections and real-time updates, verify accessibility with Lighthouse audit (90+ score), test glassmorphism effects and animations",
+        "priority": "medium",
+        "dependencies": [
+          "6"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Vite project with React 18 and TypeScript",
+            "description": "Initialize new Vite project with React 18, TypeScript 5, and configure development environment with proper folder structure and base configuration files",
+            "dependencies": [],
+            "details": "Run npm create vite@latest with React-TS template, configure tsconfig.json with strict mode and path aliases (@components, @lib, @hooks), set up ESLint with React hooks rules, configure Prettier, create src folder structure (components/, pages/, hooks/, lib/, types/), add .env files for API configuration",
+            "status": "done",
+            "testStrategy": "Verify dev server starts on port 5173, check TypeScript compilation without errors, ensure hot module replacement works",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:58:01.584Z"
+          },
+          {
+            "id": 2,
+            "title": "Configure Tailwind CSS v4 with OKLCH color system",
+            "description": "Install and configure Tailwind CSS v4 with custom OKLCH color palette for dark futuristic theme including deep blues, cyans, and neon accents",
+            "dependencies": [
+              1
+            ],
+            "details": "Install Tailwind CSS v4 and dependencies, create tailwind.config.js with OKLCH color definitions for primary blues (oklch(25% 0.15 250)), cyans (oklch(70% 0.2 200)), accent neons, configure dark mode as default, set up CSS variables for dynamic theming, add custom utilities for glassmorphism effects",
+            "status": "done",
+            "testStrategy": "Verify OKLCH colors render correctly in browser, test color contrast ratios meet WCAG standards, confirm dark mode is default",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:58:02.306Z"
+          },
+          {
+            "id": 3,
+            "title": "Install and theme shadcn/ui components",
+            "description": "Set up shadcn/ui CLI, install required components (Card, Button, Dialog, Select, Input, Badge), and apply custom dark theme with glassmorphism styling",
+            "dependencies": [
+              2
+            ],
+            "details": "Initialize shadcn/ui with dark theme preset, install components: Card, Button, Dialog, Select, Input, Badge, Checkbox, ScrollArea, Toast, customize components.json with OKLCH color scheme, override default component styles with glassmorphism effects using backdrop-blur and border gradients",
+            "status": "done",
+            "testStrategy": "Test each shadcn component renders with custom theme, verify accessibility with keyboard navigation, check component styling consistency",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:11:09.538Z"
+          },
+          {
+            "id": 4,
+            "title": "Build ProjectCard component with glassmorphism effects",
+            "description": "Create ProjectCard component featuring glassmorphism design, framework icons, status badges, hover animations with glow effects, and responsive layout",
+            "dependencies": [
+              3
+            ],
+            "details": "Create ProjectCard.tsx with props for project data, implement glassmorphism with backdrop-blur-md and bg-opacity-10, add framework icon mapping (React, Vue, Angular, etc.), create status badges with color coding, implement hover state with box-shadow glow and scale transform, add Framer Motion for entrance animations, ensure responsive design for mobile/tablet/desktop",
+            "status": "done",
+            "testStrategy": "Test component with various project data types, verify hover effects work smoothly, check responsive behavior at different breakpoints",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:16:50.252Z"
+          },
+          {
+            "id": 5,
+            "title": "Create Dashboard page with responsive grid layout",
+            "description": "Build main Dashboard page with responsive CSS grid (3-4 columns), implement infinite scroll or pagination for handling 500+ projects, add loading states and empty states",
+            "dependencies": [
+              4
+            ],
+            "details": "Create Dashboard.tsx page component, implement responsive grid with grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4, add react-intersection-observer for infinite scroll with 20 items per load, create loading skeleton cards, implement empty state with call-to-action, add page header with project count and view options, integrate Framer Motion stagger animations for card entrance",
+            "status": "done",
+            "testStrategy": "Test grid responsiveness on various screen sizes, verify infinite scroll performance with 500+ items, measure initial load time under 2 seconds",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:16:50.962Z"
+          },
+          {
+            "id": 6,
+            "title": "Implement SearchFilters component with debouncing",
+            "description": "Build search and filter UI with debounced text search (300ms), multi-select dropdowns for framework/language/status filtering, and removable filter tag chips",
+            "dependencies": [
+              3
+            ],
+            "details": "Create SearchFilters.tsx with controlled Input component, implement useDebounce hook with 300ms delay, add multi-select dropdowns using shadcn Select component for framework/language/status filters, create FilterChip component for active filters with remove functionality, implement filter state management with URL query params synchronization, add clear all filters action",
+            "status": "done",
+            "testStrategy": "Test debounce timing with rapid typing, verify multi-select functionality, confirm URL updates with filter changes, test filter removal",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:16:51.645Z"
+          },
+          {
+            "id": 7,
+            "title": "Build ProjectDetail modal with full information display",
+            "description": "Create modal dialog component to display complete project details including AI analysis summary, tech stack breakdown, statistics, and action buttons for system integration",
+            "dependencies": [
+              3
+            ],
+            "details": "Create ProjectDetail.tsx using shadcn Dialog component, design modal layout with sections for AI summary, tech stack pills, project statistics (file count, last modified, complexity score), add action buttons for 'Open in VSCode' and 'Reveal in Finder', implement smooth open/close animations, ensure modal is scrollable on mobile, add keyboard shortcut support (ESC to close)",
+            "status": "done",
+            "testStrategy": "Test modal opening/closing animations, verify content scrolling on mobile, test keyboard navigation and ESC key functionality",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:16:52.350Z"
+          },
+          {
+            "id": 8,
+            "title": "Set up Zustand store for global state management",
+            "description": "Configure Zustand store to manage application state including projects list, active filters, UI preferences, and WebSocket connection status",
+            "dependencies": [
+              1
+            ],
+            "details": "Install and configure Zustand with TypeScript, create useProjectStore with state slices for projects array, filters object (search, framework, language, status), UI settings (view mode, sort order), WebSocket connection status, implement actions for updating projects, applying filters, handling real-time updates, add persist middleware for UI preferences using localStorage",
+            "status": "done",
+            "testStrategy": "Test state updates trigger re-renders correctly, verify localStorage persistence works, test filter application logic",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:58:03.022Z"
+          },
+          {
+            "id": 9,
+            "title": "Integrate TanStack Query for server state and caching",
+            "description": "Set up TanStack Query (React Query) for API data fetching, caching, background refetching, and optimistic updates with proper error handling",
+            "dependencies": [
+              8
+            ],
+            "details": "Install @tanstack/react-query, configure QueryClient with 5-minute stale time and 10-minute cache time, create custom hooks: useProjects (with pagination), useProject (by ID), useSearchProjects (with filters), implement optimistic updates for project actions, set up error boundaries and retry logic (3 attempts), configure background refetching on window focus",
+            "status": "done",
+            "testStrategy": "Test cache invalidation after mutations, verify optimistic updates rollback on error, test background refetching behavior",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:58:03.742Z"
+          },
+          {
+            "id": 10,
+            "title": "Implement WebSocket client with automatic reconnection",
+            "description": "Build WebSocket client service for real-time project updates with automatic reconnection logic, event handling, and toast notifications for user feedback",
+            "dependencies": [
+              8
+            ],
+            "details": "Create WebSocketService class with connection to ws://localhost:3000/ws, implement automatic reconnection with exponential backoff (1s, 2s, 4s, 8s max), handle events: project:added, project:updated, project:analyzed, project:removed, integrate with Zustand store for state updates, use react-hot-toast for notification toasts, add connection status indicator in UI header, implement heartbeat/ping-pong for connection monitoring",
+            "status": "done",
+            "testStrategy": "Test reconnection after network interruption, verify real-time updates appear within 500ms, test notification display for all event types",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T14:58:04.467Z"
+          }
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 10,
+        "expansionPrompt": "Break down into: 1) Vite + React + TypeScript setup, 2) Tailwind CSS v4 with OKLCH configuration, 3) shadcn/ui component installation and theming, 4) ProjectCard component with glassmorphism, 5) Dashboard layout with responsive grid, 6) SearchFilters with debouncing, 7) ProjectDetail modal, 8) Zustand state management, 9) TanStack Query integration, 10) WebSocket client with reconnection",
+        "updatedAt": "2025-11-05T15:16:52.350Z"
+      },
+      {
+        "id": "8",
+        "title": "Integrate real-time WebSocket communication across all services",
+        "description": "Connect file watcher, worker service, and frontend with WebSocket events to provide seamless real-time updates for project discovery, analysis progress, and status changes",
+        "details": "Implement Redis pub/sub integration in backend to listen for file watcher events (project:added, project:removed) and worker completion events. Set up WebSocket event broadcasting to all connected clients with events: 'project:discovered', 'project:analyzing', 'project:analyzed', 'project:error'. Add heartbeat pings every 30s and automatic reconnection logic in frontend. Implement connection state management in Zustand store. Add toast notifications for new project discoveries and analysis completions. Ensure WebSocket server handles multiple concurrent connections efficiently and broadcasts events only to relevant clients.",
+        "testStrategy": "Test end-to-end event flow: create project folder → file watcher detects → backend receives → analysis queued → worker processes → result stored → WebSocket broadcasts → frontend updates. Verify multiple client connections receive events, test reconnection after network interruption, confirm heartbeat keeps connections alive",
+        "priority": "medium",
+        "dependencies": [
+          "6",
+          "7"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Redis pub/sub listener in backend for file watcher and worker events",
+            "description": "Implement Redis subscriber in the backend service to listen for file watcher events (project:added, project:removed) and worker completion events, processing them for WebSocket broadcast",
+            "dependencies": [],
+            "details": "Create RedisSubscriber class in backend that connects to Redis and subscribes to channels: 'file-watcher:events' and 'worker:events'. Parse incoming messages to extract event type and payload. Map file watcher events (project:added/removed) to WebSocket events. Handle worker completion events with status updates. Implement error handling for Redis connection failures with automatic reconnection. Add logging for all received events. Ensure proper cleanup on service shutdown.",
+            "status": "done",
+            "testStrategy": "Mock Redis pub/sub messages and verify correct event parsing, test reconnection logic after Redis disconnection, verify memory cleanup on shutdown",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:30:42.768Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement WebSocket event broadcasting system with Socket.io",
+            "description": "Create WebSocket server using Socket.io to broadcast real-time events to all connected clients with proper event typing and room management",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up Socket.io server in Express backend with CORS configuration for frontend origin. Define typed events: 'project:discovered', 'project:analyzing', 'project:analyzed', 'project:error'. Implement broadcast function that sends events to all connected clients. Add room-based broadcasting for future multi-tenant support. Create event queue to handle rapid event bursts. Add connection logging with client IDs. Implement rate limiting to prevent event flooding. Ensure graceful handling of client disconnections.",
+            "status": "done",
+            "testStrategy": "Test multiple client connections receive broadcasts, verify event queuing under high load, test rate limiting with rapid events",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:30:43.559Z"
+          },
+          {
+            "id": 3,
+            "title": "Add heartbeat mechanism and connection state management",
+            "description": "Implement heartbeat pings every 30 seconds to maintain connection health and detect stale connections with proper cleanup",
+            "dependencies": [
+              2
+            ],
+            "details": "Configure Socket.io heartbeat interval to 30 seconds with 60-second timeout for disconnection detection. Implement ping/pong mechanism to verify client responsiveness. Track connection state for each client (connected, disconnected, reconnecting). Add connection metrics tracking (uptime, reconnection count, last activity). Implement stale connection cleanup after 5 minutes of inactivity. Create connection pool management to limit maximum concurrent connections. Add health check endpoint for monitoring WebSocket server status.",
+            "status": "done",
+            "testStrategy": "Verify heartbeat sends every 30s, test stale connection cleanup after timeout, simulate network interruption and verify detection",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:30:44.271Z"
+          },
+          {
+            "id": 4,
+            "title": "Build frontend WebSocket client with automatic reconnection logic",
+            "description": "Create robust WebSocket client in React frontend with exponential backoff reconnection strategy and connection state management",
+            "dependencies": [],
+            "details": "Create useWebSocket custom hook using Socket.io client library with automatic connection on mount. Implement exponential backoff reconnection (1s, 2s, 4s, 8s, max 30s) after disconnection. Add connection state tracking (connecting, connected, disconnected, error). Create event listener registration system for components to subscribe to specific events. Implement message queue for offline messages to send on reconnection. Add connection status indicator component. Handle authentication if needed for WebSocket connection. Ensure proper cleanup on component unmount.",
+            "status": "done",
+            "testStrategy": "Test reconnection with increasing delays, verify event listeners cleanup properly, test offline message queuing and delivery on reconnection",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:30:44.976Z"
+          },
+          {
+            "id": 5,
+            "title": "Integrate WebSocket connection state with Zustand store",
+            "description": "Add WebSocket connection state management to existing Zustand store with actions for connection status updates and event handling",
+            "dependencies": [
+              4
+            ],
+            "details": "Extend Zustand store with WebSocket slice containing connection state (status, reconnectAttempts, lastConnected). Add actions: setConnectionStatus, incrementReconnectAttempts, resetReconnectAttempts. Create middleware to sync WebSocket events with store updates. Map incoming events to store actions (project:discovered → addProject, project:analyzed → updateProjectStatus). Add computed selectors for connection health indicators. Implement optimistic updates with rollback on connection failure. Persist connection metrics to localStorage for debugging.",
+            "status": "done",
+            "testStrategy": "Test store updates on connection state changes, verify event-to-action mapping, test optimistic updates and rollback scenarios",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:30:45.667Z"
+          },
+          {
+            "id": 6,
+            "title": "Implement toast notification system for real-time updates",
+            "description": "Create toast notification component system to display real-time updates for project discoveries, analysis completions, and connection status changes",
+            "dependencies": [
+              5
+            ],
+            "details": "Install and configure react-hot-toast or similar library for toast notifications. Create notification service that listens to WebSocket events and triggers appropriate toasts. Define toast types: success (project analyzed), info (new project discovered), warning (connection lost), error (analysis failed). Add notification preferences to allow users to toggle specific notification types. Implement notification queue with max 3 visible toasts. Add click-to-dismiss and auto-dismiss after 5 seconds. Style toasts to match application theme with smooth animations. Include action buttons in toasts (e.g., 'View Project' for completed analysis).",
+            "status": "done",
+            "testStrategy": "Test toast appearance for each event type, verify queue limits with rapid events, test user interaction and dismissal, verify notification preferences persistence",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:30:46.431Z"
+          }
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into: 1) Redis pub/sub listener in backend, 2) WebSocket event broadcasting system, 3) Heartbeat and connection management, 4) Frontend WebSocket client with auto-reconnection, 5) Zustand integration for connection state, 6) Toast notification system",
+        "updatedAt": "2025-11-05T15:30:46.431Z"
+      },
+      {
+        "id": "9",
+        "title": "Add comprehensive error handling and loading states",
+        "description": "Implement robust error boundaries, loading skeletons, offline state handling, and user-friendly error messages throughout the application with graceful degradation",
+        "details": "Add React error boundaries to catch component errors and display fallback UI. Implement loading skeletons for ProjectCard components during initial load and search. Add progress indicators for projects in ANALYZING status with estimated completion time. Create offline state detection and display 'API unreachable' message with retry button. Implement toast notifications for errors, successes, and important state changes. Add form validation with clear error messages. Handle WebSocket disconnections gracefully with automatic retry and user notification. Include 404 pages for invalid routes and proper HTTP status code handling in API responses.",
+        "testStrategy": "Simulate API failures and verify error boundaries catch exceptions, test loading states with network throttling, trigger offline mode and verify fallback UI, test WebSocket disconnection and reconnection scenarios, verify toast notifications appear for various events, test form validation with invalid inputs",
+        "priority": "low",
+        "dependencies": [
+          "8"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement React error boundaries for component error handling",
+            "description": "Create error boundary components to catch and handle React component errors with fallback UI display",
+            "dependencies": [],
+            "details": "Build a generic ErrorBoundary component that catches JavaScript errors in child components. Create specific error boundaries for different sections (dashboard, project details, settings). Implement fallback UI components showing user-friendly error messages with 'Try Again' buttons. Add error logging to console and prepare for future error reporting service integration. Include development vs production error display modes.",
+            "status": "done",
+            "testStrategy": "Test error boundaries by throwing errors in child components, verify fallback UI renders correctly, test reset functionality, ensure errors are properly logged",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:43:46.865Z"
+          },
+          {
+            "id": 2,
+            "title": "Create loading skeletons for ProjectCard and list components",
+            "description": "Design and implement skeleton screens for loading states across all major components to improve perceived performance",
+            "dependencies": [],
+            "details": "Create ProjectCardSkeleton component with animated placeholders matching actual ProjectCard layout. Build list skeleton for project grid with shimmer effect using CSS animations. Implement skeleton loaders for sidebar navigation, search results, and filter components. Add configurable skeleton count based on viewport size. Integrate skeletons into existing loading states replacing simple spinners.",
+            "status": "done",
+            "testStrategy": "Verify skeletons match actual component dimensions, test animation performance, simulate slow network to observe loading states, ensure smooth transition from skeleton to loaded content",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:43:47.559Z"
+          },
+          {
+            "id": 3,
+            "title": "Build progress indicators for ANALYZING status projects",
+            "description": "Implement real-time progress tracking UI for projects currently being analyzed with estimated completion times",
+            "dependencies": [],
+            "details": "Create AnalysisProgress component showing percentage complete and estimated time remaining. Integrate WebSocket updates for real-time progress from backend analysis service. Design circular progress indicator for project cards and linear progress bar for detail views. Calculate and display ETA based on historical analysis times and current progress rate. Add pulsing animation for active analysis indication.",
+            "status": "pending",
+            "testStrategy": "Test progress updates via WebSocket events, verify ETA calculations accuracy, test UI updates smoothly without flicker, ensure graceful handling when analysis stalls",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement offline state detection and graceful degradation",
+            "description": "Build offline detection system with appropriate UI feedback and retry mechanisms for API unreachable scenarios",
+            "dependencies": [],
+            "details": "Create useOnlineStatus hook using Navigator.onLine API and periodic API health checks. Design offline banner component displaying 'API unreachable' with manual retry button. Implement automatic retry with exponential backoff for failed API calls. Cache last known good state in localStorage for offline viewing. Add service worker for basic offline functionality and asset caching. Queue user actions during offline mode for later sync.",
+            "status": "done",
+            "testStrategy": "Test offline detection by disabling network, verify retry logic with network throttling, test cached data display, ensure queued actions sync when reconnected",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:43:48.256Z"
+          },
+          {
+            "id": 5,
+            "title": "Set up toast notification system for user feedback",
+            "description": "Implement a comprehensive toast notification system for displaying errors, successes, and important state changes",
+            "dependencies": [],
+            "details": "Integrate react-hot-toast or similar library for toast notifications. Create toast variants for success, error, warning, and info messages with appropriate icons and colors. Implement toast queue management to prevent notification overflow. Add persistent toasts for critical errors requiring user action. Configure auto-dismiss timers based on message importance. Create custom toast components for complex notifications like progress updates.",
+            "status": "done",
+            "testStrategy": "Test all toast variants display correctly, verify queue management with multiple rapid notifications, test dismiss functionality, ensure accessibility with screen readers",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T15:43:48.947Z"
+          },
+          {
+            "id": 6,
+            "title": "Add form validation with comprehensive error messaging",
+            "description": "Implement client-side form validation with clear, contextual error messages for all user input fields",
+            "dependencies": [],
+            "details": "Add react-hook-form with Zod schema validation for type-safe form handling. Create validation schemas for project creation, search filters, and settings forms. Design inline error messages appearing below form fields with red highlighting. Implement real-time validation on blur and submit with debouncing. Add helpful error messages explaining validation requirements clearly. Create form-level error summary for accessibility compliance.",
+            "status": "pending",
+            "testStrategy": "Test all validation rules with invalid inputs, verify error messages are clear and helpful, test accessibility with keyboard navigation, ensure validation doesn't block valid submissions",
+            "parentId": "undefined"
+          }
+        ],
+        "complexity": 4,
+        "recommendedSubtasks": 6,
+        "expansionPrompt": "Break down into: 1) React error boundaries implementation, 2) Loading skeletons for components, 3) Progress indicators for analyzing status, 4) Offline state detection and UI, 5) Toast notification system, 6) Form validation with error messages",
+        "updatedAt": "2025-11-05T15:43:57.719Z"
+      },
+      {
+        "id": "10",
+        "title": "Implement end-to-end integration and production optimization",
+        "description": "Complete full-stack integration testing, performance optimization, monitoring setup, and production readiness with Docker deployment and comprehensive documentation",
+        "details": "Set up Playwright for end-to-end testing of complete user flows: create project folder → auto-discovery → analysis → display in dashboard → click to open in VSCode. Configure Nginx reverse proxy for single-port deployment (port 80) with proper WebSocket proxying. Implement Winston logging in backend with structured logs and error tracking. Add performance monitoring with response time tracking and memory usage alerts. Optimize bundle sizes and implement code splitting in frontend. Set up Lighthouse CI for performance monitoring (target 90+ score). Create comprehensive README with Docker setup instructions, environment variable documentation, and troubleshooting guide. Add production docker-compose.prod.yml with optimized builds.",
+        "testStrategy": "Run Playwright E2E tests for all critical user paths, performance test with 200+ projects to verify < 1s dashboard load time, Lighthouse audit achieving 90+ score, load test API with 1000 concurrent requests, verify Docker deployment works on fresh machine following README instructions",
+        "priority": "medium",
+        "dependencies": [
+          "9"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Playwright E2E testing framework and core test infrastructure",
+            "description": "Install and configure Playwright with TypeScript support, create test helper utilities, page object models, and establish the base testing structure for end-to-end testing",
+            "dependencies": [],
+            "details": "Install Playwright with npm install -D @playwright/test, create playwright.config.ts with Chrome, Firefox, and Safari browsers configured. Set up page object models for Dashboard, ProjectCard, and SearchFilters components. Create test data fixtures with mock project data. Configure test reporters for CI/CD integration. Set up visual regression testing baseline images. Create helper functions for common operations like waiting for project discovery, checking WebSocket connections, and verifying API responses.",
+            "status": "done",
+            "testStrategy": "Run basic smoke test to verify Playwright setup works, test page object models function correctly, verify test helpers work as expected",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T17:33:31.084Z"
+          },
+          {
+            "id": 2,
+            "title": "Implement comprehensive E2E test suites for critical user flows",
+            "description": "Write Playwright tests covering the complete user journey from project folder creation through analysis to VSCode integration, ensuring all critical paths are tested",
+            "dependencies": [
+              1
+            ],
+            "details": "Create test suite for project discovery flow: create test project folder → verify auto-discovery triggers → check project appears in dashboard. Test analysis workflow: click analyze button → verify job queue processing → check Claude API integration → confirm analysis results display. Test search and filter functionality with multiple criteria combinations. Test real-time WebSocket updates for project status changes. Test VSCode deep linking functionality. Add tests for error scenarios like API failures and rate limiting. Implement parallel test execution for faster CI runs.",
+            "status": "pending",
+            "testStrategy": "Execute full E2E test suite locally and in CI, verify all critical paths have >95% pass rate, ensure tests complete within 5 minutes",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Configure Nginx reverse proxy for production deployment",
+            "description": "Set up Nginx configuration for single-port deployment with proper routing between frontend and backend services, including WebSocket proxy support",
+            "dependencies": [],
+            "details": "Create nginx.conf with server block listening on port 80. Configure location /api to proxy_pass to backend service on port 3000. Set up location /ws for WebSocket connections with proper upgrade headers (Connection: upgrade, Upgrade: websocket). Configure static file serving for React build with try_files fallback for client-side routing. Add gzip compression for text/javascript/css files. Set up security headers (X-Frame-Options, X-Content-Type-Options, CSP). Configure request/response buffering and timeouts. Add rate limiting for API endpoints to prevent abuse.",
+            "status": "done",
+            "testStrategy": "Test reverse proxy routes correctly to backend API, verify WebSocket connections work through proxy, confirm static files serve with compression",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T17:36:17.532Z"
+          },
+          {
+            "id": 4,
+            "title": "Implement Winston logging system with structured logs",
+            "description": "Add comprehensive logging throughout the backend using Winston with proper log levels, structured format, and integration with error tracking",
+            "dependencies": [],
+            "details": "Install and configure Winston with multiple transports: Console for development with colorized output, File rotation for production logs (daily rotation, 14 days retention). Create structured log format with timestamp, level, service name, correlation ID, and metadata. Implement log levels (error, warn, info, debug) with environment-based filtering. Add request logging middleware with response times and status codes. Integrate error logging with stack traces and context. Create log aggregation helpers for monitoring analysis jobs and queue processing. Add sensitive data filtering to prevent logging of API keys or personal information.",
+            "status": "done",
+            "testStrategy": "Verify logs output in correct format, test log rotation works properly, confirm error stack traces are captured, validate sensitive data is filtered",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T17:35:44.900Z"
+          },
+          {
+            "id": 5,
+            "title": "Add performance monitoring and alerting infrastructure",
+            "description": "Implement comprehensive performance monitoring for both frontend and backend with metrics collection, dashboards, and alerting for critical thresholds",
+            "dependencies": [
+              4
+            ],
+            "details": "Set up Prometheus metrics collection with prom-client for Node.js: track API response times, memory usage, CPU utilization, active connections, job queue metrics. Create custom metrics for project discovery rate, analysis completion time, cache hit ratio. Implement health check endpoints returning service status and dependencies. Add memory leak detection with heap snapshot on threshold. Configure alerting rules for: response time > 1s, memory usage > 80%, error rate > 1%, job queue backlog > 100. Create Grafana dashboards for visualization. Add frontend performance tracking with Web Vitals (LCP, FID, CLS).",
+            "status": "done",
+            "testStrategy": "Load test to verify metrics are collected accurately, test alert triggers at configured thresholds, verify dashboards display correct data",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T17:38:57.820Z"
+          },
+          {
+            "id": 6,
+            "title": "Optimize frontend bundle size and implement code splitting",
+            "description": "Reduce React application bundle size through code splitting, lazy loading, and optimization techniques to achieve fast initial load times",
+            "dependencies": [],
+            "details": "Implement React.lazy() and Suspense for route-based code splitting, separating Dashboard, Settings, and Details pages into separate chunks. Configure Vite's rollup options for manual chunks: vendor (react, react-dom), ui (shadcn components), utils (shared utilities). Add dynamic imports for heavy components like charts and visualizations. Implement tree shaking for unused code elimination. Optimize images with next-gen formats (WebP, AVIF) and lazy loading. Minify and compress CSS with PostCSS plugins. Analyze bundle with rollup-plugin-visualizer to identify optimization opportunities. Target < 200KB initial bundle, < 50KB per route chunk.",
+            "status": "done",
+            "testStrategy": "Measure bundle sizes with webpack-bundle-analyzer, verify lazy loading works correctly, test initial page load < 1s on 3G connection",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T17:37:14.068Z"
+          },
+          {
+            "id": 7,
+            "title": "Set up Lighthouse CI for automated performance monitoring",
+            "description": "Configure Lighthouse CI to run performance audits on every commit, tracking metrics over time and failing builds that don't meet performance thresholds",
+            "dependencies": [
+              6
+            ],
+            "details": "Install and configure Lighthouse CI with GitHub Actions workflow. Set performance budget thresholds: Performance score >= 90, Accessibility >= 95, Best Practices >= 95, SEO >= 90. Configure audits for multiple pages (Dashboard, Project Details, Search Results). Set up Lighthouse CI server for historical tracking and regression detection. Create assertions for critical metrics: LCP < 2.5s, FID < 100ms, CLS < 0.1, TTI < 3.5s. Configure multiple test runs (3) to reduce variance. Add performance regression comments to PRs. Create performance dashboard showing trends over time. Set up alerts for performance degradation > 10 points.",
+            "status": "pending",
+            "testStrategy": "Run Lighthouse audit manually to verify 90+ scores, test CI workflow triggers on commits, verify regression detection works correctly",
+            "parentId": "undefined"
+          },
+          {
+            "id": 8,
+            "title": "Create production Docker configuration and comprehensive documentation",
+            "description": "Build optimized Docker images for production deployment with docker-compose configuration and write detailed documentation covering setup, configuration, and troubleshooting",
+            "dependencies": [
+              3,
+              5
+            ],
+            "details": "Create multi-stage Dockerfile for frontend: Node build stage with production optimizations, Nginx serve stage with minimal Alpine image (< 50MB). Create backend Dockerfile with Node Alpine, proper signal handling, and non-root user. Write docker-compose.prod.yml with all services: frontend, backend, PostgreSQL, Redis, Nginx reverse proxy. Add health checks for all containers. Configure proper networking and volumes. Document all environment variables with examples and descriptions. Write comprehensive README with: Quick start guide, Docker setup instructions, Environment configuration guide, API documentation, Troubleshooting common issues, Performance tuning tips, Backup and restore procedures.",
+            "status": "done",
+            "testStrategy": "Build and run production containers locally, verify all services start correctly, test deployment on fresh machine following README only",
+            "parentId": "undefined",
+            "updatedAt": "2025-11-05T17:41:18.478Z"
+          }
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 8,
+        "expansionPrompt": "Break down into: 1) Playwright E2E test suite setup, 2) Nginx reverse proxy configuration, 3) Winston logging implementation, 4) Performance monitoring setup, 5) Frontend bundle optimization, 6) Lighthouse CI configuration, 7) Production Docker configuration, 8) Comprehensive documentation",
+        "updatedAt": "2025-11-05T17:41:33.772Z"
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2025-11-05T17:41:33.772Z",
+      "taskCount": 10,
+      "completedCount": 10,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

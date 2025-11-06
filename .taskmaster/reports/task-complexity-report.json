@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-11-05T10:20:50.168Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Set up project foundation and Docker infrastructure",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down into: 1) Docker Compose configuration with all services, 2) Shared TypeScript types setup, 3) Environment variable configuration and .env.example, 4) Docker networking setup, 5) Verification and testing setup",
+			"reasoning": "This is a standard Docker multi-service setup. The complexity is moderate because it involves multiple services but uses well-established patterns. Docker Compose is straightforward, and the shared types structure is a common monorepo pattern."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Design and implement PostgreSQL database schema with Prisma",
+			"complexityScore": 3,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down into: 1) Design and create Prisma schema models, 2) Configure indexes and relationships, 3) Set up migrations and database connection, 4) Implement and test CRUD operations",
+			"reasoning": "Prisma significantly simplifies database work with its declarative schema and auto-generated client. The models described are straightforward with clear relationships. The main complexity is in proper indexing strategy."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Build file system monitoring service with Chokidar",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: 1) Chokidar setup with depth-limited watching, 2) Debouncing implementation for file system events, 3) Project validation logic for multiple languages, 4) Redis pub/sub integration, 5) Error handling and permission management, 6) Testing with various scenarios",
+			"reasoning": "File system watching has inherent complexity with debouncing, handling rapid changes, and cross-platform considerations. Project validation across multiple languages adds complexity. Redis integration and error handling require careful implementation."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Create project metadata extraction and database persistence",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down into: 1) Package.json parser and dependency analyzer, 2) Framework detection from dependencies and configs, 3) Language detection from file extensions and configs, 4) Package manager detection from lock files, 5) Recursive file counting with exclusions, 6) Prisma database service implementation, 7) Concurrent update handling with transactions",
+			"reasoning": "Metadata extraction requires parsing multiple file formats and implementing heuristics for framework/language detection. Supporting multiple languages (JS/TS, Python, Rust, Go) adds significant complexity. Concurrent database operations need careful transaction management."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Implement Claude API integration with caching and job queue",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down into: 1) BullMQ setup with Redis configuration, 2) Project context builder with token limiting, 3) Anthropic SDK integration with prompt caching, 4) Rate limiting implementation, 5) Redis caching layer with TTL, 6) Retry logic with exponential backoff, 7) Error handling and timeout management, 8) WebSocket event emission on completion",
+			"reasoning": "This involves complex integration of multiple systems: job queue, API rate limiting, caching layers, and retry mechanisms. Token management and prompt optimization require careful implementation. The async nature and error handling add significant complexity."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Build REST API server with comprehensive endpoints",
+			"complexityScore": 5,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down into: 1) Fastify server setup with middleware, 2) CRUD route implementations, 3) Search and filter endpoints with query building, 4) Zod validation schemas, 5) WebSocket server setup, 6) System integration endpoints for macOS, 7) Security and path validation",
+			"reasoning": "Building REST APIs with Fastify is well-documented, but the variety of endpoints and features adds complexity. WebSocket integration, system command execution, and security considerations require careful implementation."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Develop React frontend with shadcn/ui and dark futuristic theme",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break down into: 1) Vite + React + TypeScript setup, 2) Tailwind CSS v4 with OKLCH configuration, 3) shadcn/ui component installation and theming, 4) ProjectCard component with glassmorphism, 5) Dashboard layout with responsive grid, 6) SearchFilters with debouncing, 7) ProjectDetail modal, 8) Zustand state management, 9) TanStack Query integration, 10) WebSocket client with reconnection",
+			"reasoning": "Frontend development with multiple modern libraries, custom theming with OKLCH colors, glassmorphism effects, animations, and real-time features creates high complexity. Managing state across Zustand and TanStack Query while handling WebSocket updates requires sophisticated architecture."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Integrate real-time WebSocket communication across all services",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: 1) Redis pub/sub listener in backend, 2) WebSocket event broadcasting system, 3) Heartbeat and connection management, 4) Frontend WebSocket client with auto-reconnection, 5) Zustand integration for connection state, 6) Toast notification system",
+			"reasoning": "Real-time communication across multiple services requires careful coordination. Managing connection states, implementing reconnection logic, and ensuring reliable message delivery adds complexity. The integration touches multiple parts of the system."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Add comprehensive error handling and loading states",
+			"complexityScore": 4,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: 1) React error boundaries implementation, 2) Loading skeletons for components, 3) Progress indicators for analyzing status, 4) Offline state detection and UI, 5) Toast notification system, 6) Form validation with error messages",
+			"reasoning": "Error handling and loading states are well-established patterns in React. While comprehensive, most implementations are straightforward using existing libraries. The main complexity is ensuring consistent UX across all error scenarios."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Implement end-to-end integration and production optimization",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down into: 1) Playwright E2E test suite setup, 2) Nginx reverse proxy configuration, 3) Winston logging implementation, 4) Performance monitoring setup, 5) Frontend bundle optimization, 6) Lighthouse CI configuration, 7) Production Docker configuration, 8) Comprehensive documentation",
+			"reasoning": "Production readiness involves multiple complex areas: E2E testing, performance optimization, monitoring, and deployment. Each area requires specialized knowledge and careful configuration. Documentation and testing add significant effort."
+		}
+	]
+}
