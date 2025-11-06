@@ -69,6 +69,10 @@ async function start() {
       logger.warn('⚠️  Some services are not healthy, but continuing...');
     }
 
+    // Resume queue processing (in case it was paused from previous shutdown)
+    await queueManager.resume();
+    logger.info('▶️  Queue processing resumed');
+
     // Health check interval
     setInterval(async () => {
       const healthy = await processor.isHealthy();
