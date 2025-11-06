@@ -176,7 +176,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <img
-                src="/logo.svg"
+                src="/logo.png"
                 alt="MyDevInsights Logo"
                 className="h-12 w-12"
               />
