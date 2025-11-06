@@ -184,7 +184,7 @@ Before you begin, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/mudislandkid/mydevinsights.git
+git clone https://github.com/mudislandkid/MyDevInsights.git
 cd mydevinsights
 ```
 
@@ -615,8 +615,8 @@ services:
 
 ### Getting Help
 
-- **Issues**: https://github.com/mudislandkid/mydevinsights/issues
-- **Discussions**: https://github.com/mudislandkid/mydevinsights/discussions
+- **Issues**: https://github.com/mudislandkid/MyDevInsights/issues
+- **Discussions**: https://github.com/mudislandkid/MyDevInsights/discussions
 
 ---
 
@@ -676,7 +676,7 @@ Special thanks to all contributors and the open-source community!
 
 ## 📧 Contact
 
-**Project Link**: https://github.com/mudislandkid/mydevinsights
+**Project Link**: https://github.com/mudislandkid/MyDevInsights
 
 For inquiries, please open a GitHub issue or discussion.
 
