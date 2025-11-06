@@ -50,21 +50,60 @@ const PRIORITY_FILES = [
   'nuxt.config.ts',
 ];
 
-// Directories to skip
-const SKIP_DIRECTORIES = [
+// Directories to skip (dependencies, build artifacts, caches, etc.)
+const SKIP_DIRECTORIES = new Set([
+  // Dependencies
   'node_modules',
-  '.git',
+  'bower_components',
+  'vendor',
+  'packages',
+
+  // Build outputs
   'dist',
   'build',
-  'coverage',
-  '__pycache__',
-  '.next',
   'out',
+  '.next',
+  '.nuxt',
+  '.output',
   'target',
-  'vendor',
+  'bin',
+  'obj',
+
+  // Version control
+  '.git',
+  '.svn',
+  '.hg',
+
+  // IDE/Editor
   '.vscode',
   '.idea',
-];
+  '.vs',
+
+  // Caches & temp files
+  '.cache',
+  '.angular',
+  '.turbo',
+  '.svelte-kit',
+  '.parcel-cache',
+  '.webpack',
+  'tmp',
+  'temp',
+  '.tmp',
+
+  // Testing/Coverage
+  'coverage',
+  '.nyc_output',
+  '.pytest_cache',
+  'htmlcov',
+
+  // Python virtual environments
+  '__pycache__',
+  'venv',
+  'env',
+  '.venv',
+  '.env',
+  'virtualenv',
+]);
 
 export class ContextExtractor {
   private encoder: any;
@@ -204,8 +243,8 @@ export class ContextExtractor {
         const fullPath = path.join(dirPath, entry.name);
 
         if (entry.isDirectory()) {
-          // Skip excluded directories
-          if (!SKIP_DIRECTORIES.includes(entry.name) && !entry.name.startsWith('.')) {
+          // Skip excluded directories and hidden directories
+          if (!SKIP_DIRECTORIES.has(entry.name) && !entry.name.startsWith('.')) {
             await this.getAllFiles(fullPath, files);
           }
         } else if (entry.isFile()) {
