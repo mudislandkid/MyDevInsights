@@ -439,21 +439,10 @@ export async function projectRoutes(fastify: FastifyInstance) {
       // Process each directory
       for (const dirPath of directories) {
         try {
-          // Basic validation - check if it looks like a project
-          const hasPackageJson = await fs.access(path.join(dirPath, 'package.json'))
-            .then(() => true)
-            .catch(() => false);
-          const hasCargoToml = await fs.access(path.join(dirPath, 'Cargo.toml'))
-            .then(() => true)
-            .catch(() => false);
-          const hasGoMod = await fs.access(path.join(dirPath, 'go.mod'))
-            .then(() => true)
-            .catch(() => false);
-          const hasPyProject = await fs.access(path.join(dirPath, 'pyproject.toml'))
-            .then(() => true)
-            .catch(() => false);
+          // Use same validation logic as file-watcher
+          const isValid = await metadataExtractor.isValidProject(dirPath);
 
-          if (!hasPackageJson && !hasCargoToml && !hasGoMod && !hasPyProject) {
+          if (!isValid) {
             logger.debug(`⏭️  Skipping non-project directory: ${dirPath}`);
             skipped++;
             continue;
