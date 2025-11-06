@@ -80,7 +80,7 @@ services:
     container_name: mydevinsights-worker
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/mydevinsights}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/mydevinsights
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-1}
     env_file:
