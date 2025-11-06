@@ -74,6 +74,8 @@ export function Queue() {
   const [isResuming, setIsResuming] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [jobToDelete, setJobToDelete] = useState<string | null>(null)
+  const [showForceDelete, setShowForceDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Fetch queue stats
   const { data: statsData, refetch: refetchStats } = useQuery({
@@ -149,10 +151,42 @@ export function Queue() {
       await apiClient.deleteQueueJob(jobId)
       toast.success('Job deleted')
       setJobToDelete(null)
+      setShowForceDelete(false)
+      setDeleteError(null)
       refetchStats()
       refetchJobs()
     } catch (error) {
-      toast.error('Failed to delete job', {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred'
+      setDeleteError(errorMessage)
+
+      // If job is locked or active, offer force delete option
+      if (errorMessage.includes('locked') || errorMessage.includes('active')) {
+        setShowForceDelete(true)
+        toast.error('Job cannot be deleted normally', {
+          description: errorMessage
+        })
+      } else {
+        toast.error('Failed to delete job', {
+          description: errorMessage
+        })
+        setJobToDelete(null)
+      }
+    }
+  }, [refetchStats, refetchJobs])
+
+  const handleForceDeleteJob = useCallback(async (jobId: string) => {
+    try {
+      const result = await apiClient.forceDeleteQueueJob(jobId)
+      toast.success('Job force deleted', {
+        description: result.message
+      })
+      setJobToDelete(null)
+      setShowForceDelete(false)
+      setDeleteError(null)
+      refetchStats()
+      refetchJobs()
+    } catch (error) {
+      toast.error('Failed to force delete job', {
         description: error instanceof Error ? error.message : 'An error occurred'
       })
     }
@@ -451,22 +485,55 @@ export function Queue() {
       </main>
 
       {/* Delete Job Dialog */}
-      <AlertDialog open={!!jobToDelete} onOpenChange={() => setJobToDelete(null)}>
+      <AlertDialog
+        open={!!jobToDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setJobToDelete(null)
+            setShowForceDelete(false)
+            setDeleteError(null)
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Job</AlertDialogTitle>
+            <AlertDialogTitle>
+              {showForceDelete ? 'Force Delete Job' : 'Delete Job'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this job? This action cannot be undone.
+              {showForceDelete ? (
+                <div className="space-y-2">
+                  <p className="text-destructive font-medium">{deleteError}</p>
+                  <p>
+                    This job is currently locked or active. You can force delete it, but this may cause issues
+                    if the job is actively processing. Consider pausing the queue first.
+                  </p>
+                  <p className="font-medium">
+                    Do you want to force delete this job anyway?
+                  </p>
+                </div>
+              ) : (
+                'Are you sure you want to delete this job? This action cannot be undone.'
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => jobToDelete && handleDeleteJob(jobToDelete)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
+            {showForceDelete ? (
+              <AlertDialogAction
+                onClick={() => jobToDelete && handleForceDeleteJob(jobToDelete)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Force Delete
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction
+                onClick={() => jobToDelete && handleDeleteJob(jobToDelete)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

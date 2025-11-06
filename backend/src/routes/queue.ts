@@ -201,15 +201,111 @@ export async function queueRoutes(fastify: FastifyInstance) {
         });
       }
 
-      await job.remove();
-      logger.info(`🗑️  Removed job ${params.id}`);
+      // Check job state before attempting to remove
+      const state = await job.getState();
 
-      return reply.status(204).send();
-    } catch (error) {
+      if (state === 'active') {
+        return reply.status(409).send({
+          error: 'Job is Active',
+          message: 'Cannot delete an active job. Please wait for it to complete or fail, or pause the queue first.',
+        });
+      }
+
+      try {
+        await job.remove();
+        logger.info(`🗑️  Removed job ${params.id}`);
+        return reply.status(204).send();
+      } catch (removeError: any) {
+        // Job is locked by worker - provide helpful error message
+        if (removeError.message && removeError.message.includes('locked by another worker')) {
+          return reply.status(409).send({
+            error: 'Job is Locked',
+            message: 'This job is currently locked by a worker. Wait a moment and try again, or pause the queue first.',
+          });
+        }
+        throw removeError;
+      }
+    } catch (error: any) {
       logger.error('Failed to remove job:', error);
       return reply.status(500).send({
         error: 'Internal Server Error',
-        message: 'Failed to remove job',
+        message: error.message || 'Failed to remove job',
+      });
+    }
+  });
+
+  /**
+   * POST /queue/jobs/:id/force-delete - Force delete a job (even if locked)
+   */
+  fastify.post('/jobs/:id/force-delete', async (_request, reply) => {
+    const params = JobIdParamSchema.parse(_request.params);
+
+    try {
+      const queueClient = await getAnalysisQueue();
+      const queue = (queueClient as any).queue;
+
+      if (!queue) {
+        return reply.status(503).send({
+          error: 'Service Unavailable',
+          message: 'Queue is not initialized',
+        });
+      }
+
+      const job = await queue.getJob(params.id);
+
+      if (!job) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Job not found',
+        });
+      }
+
+      // Try to move job to failed state first, then remove
+      try {
+        const state = await job.getState();
+
+        // If job is active, try to move it to failed first
+        if (state === 'active') {
+          await job.moveToFailed(new Error('Force deleted by user'), '0', false);
+          logger.info(`📍 Moved active job ${params.id} to failed state`);
+        }
+
+        // Now try to remove
+        await job.remove();
+        logger.info(`🗑️  Force removed job ${params.id}`);
+
+        return reply.send({
+          success: true,
+          message: 'Job force deleted successfully',
+        });
+      } catch (removeError: any) {
+        logger.warn(`⚠️  Could not cleanly remove job ${params.id}, attempting forceful cleanup`);
+
+        // Last resort: try to remove from all possible states
+        try {
+          await Promise.allSettled([
+            job.discard(),
+            job.remove(),
+          ]);
+
+          logger.info(`🗑️  Forcefully removed job ${params.id}`);
+          return reply.send({
+            success: true,
+            message: 'Job force deleted (with cleanup)',
+          });
+        } catch (finalError) {
+          logger.error(`Failed to force delete job ${params.id}:`, finalError);
+          return reply.status(500).send({
+            error: 'Delete Failed',
+            message: 'Could not force delete the job. Try pausing the queue first.',
+          });
+        }
+      }
+    } catch (error: any) {
+      logger.error('Failed to force delete job:', error);
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: error.message || 'Failed to force delete job',
       });
     }
   });

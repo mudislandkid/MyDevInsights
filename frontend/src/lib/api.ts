@@ -211,7 +211,24 @@ export class ApiClient {
     const response = await fetch(`${this.baseUrl}/queue/jobs/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) throw new Error('Failed to delete queue job')
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.message || 'Failed to delete queue job')
+    }
+  }
+
+  async forceDeleteQueueJob(id: string): Promise<{
+    success: boolean
+    message: string
+  }> {
+    const response = await fetch(`${this.baseUrl}/queue/jobs/${id}/force-delete`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.message || 'Failed to force delete queue job')
+    }
+    return response.json()
   }
 
   async clearQueue(): Promise<{
