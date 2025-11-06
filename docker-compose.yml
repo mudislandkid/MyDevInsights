@@ -11,7 +11,7 @@ services:
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-projectviewer}
+      - POSTGRES_DB=${POSTGRES_DB:-mydevinsights}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -52,7 +52,7 @@ services:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/mydevinsights}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - BACKEND_PORT=${BACKEND_PORT:-3000}
     env_file:
@@ -80,7 +80,7 @@ services:
     container_name: mydevinsights-worker
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/mydevinsights}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-1}
     env_file:
@@ -110,7 +110,7 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - WATCH_PATH=${WATCH_PATH:-/projects}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/mydevinsights}
       - STARTUP_DELAY=${STARTUP_DELAY:-5000}
     env_file:
       - .env

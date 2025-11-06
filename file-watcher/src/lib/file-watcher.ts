@@ -65,7 +65,7 @@ export class FileWatcher {
 
         // Performance options
         persistent: true,
-        ignoreInitial: true, // Skip existing directories on startup (prevents duplicate database errors on restart)
+        ignoreInitial: false, // Scan existing directories on startup
         followSymlinks: false, // Don't follow symbolic links
 
         // Stability options
