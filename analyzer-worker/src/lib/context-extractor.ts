@@ -115,7 +115,9 @@ export class ContextExtractor {
       context.linesOfCode = await countProjectLines(projectPath);
 
       // 5. Extract main source files (prioritized and token-limited)
-      context.mainFiles = await this.extractMainFiles(projectPath, allFiles);
+      // Pass remaining tokens after README and package.json
+      const tokensUsed = context.estimatedTokens;
+      context.mainFiles = await this.extractMainFiles(projectPath, allFiles, tokensUsed);
 
       // Calculate total size
       context.totalSize = allFiles.reduce((sum, file) => sum + (file.size || 0), 0);
@@ -227,11 +229,12 @@ export class ContextExtractor {
    */
   private async extractMainFiles(
     projectPath: string,
-    allFiles: Array<{ path: string; size: number; ext: string }>
+    allFiles: Array<{ path: string; size: number; ext: string }>,
+    tokensAlreadyUsed: number = 0
   ): Promise<FileContent[]> {
     const mainFiles: FileContent[] = [];
     let currentTokens = 0;
-    const remainingTokens = this.maxTokens - currentTokens;
+    const remainingTokens = this.maxTokens - tokensAlreadyUsed;
 
     // Sort files by priority
     const sortedFiles = this.prioritizeFiles(projectPath, allFiles);
