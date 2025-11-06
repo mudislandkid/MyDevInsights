@@ -108,6 +108,39 @@ export class AnalysisQueueClient {
   }
 
   /**
+   * Clear all jobs from the queue
+   */
+  async clearAllJobs(): Promise<number> {
+    if (!this.queue) {
+      throw new Error('Queue not initialized');
+    }
+
+    try {
+      // Get all jobs in various states
+      const [waiting, active, delayed] = await Promise.all([
+        this.queue.getWaiting(),
+        this.queue.getActive(),
+        this.queue.getDelayed(),
+      ]);
+
+      // Remove all jobs
+      const allJobs = [...waiting, ...active, ...delayed];
+      let cleared = 0;
+
+      for (const job of allJobs) {
+        await job.remove();
+        cleared++;
+      }
+
+      logger.info(`🗑️  Cleared ${cleared} jobs from queue`);
+      return cleared;
+    } catch (error) {
+      logger.error('Failed to clear queue:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Check if queue is healthy
    */
   async isHealthy(): Promise<boolean> {

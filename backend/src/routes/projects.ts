@@ -510,4 +510,48 @@ export async function projectRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  /**
+   * POST /projects/reset-stuck - Reset stuck analyzing projects and clear queues
+   */
+  fastify.post('/reset-stuck', async (_request, reply) => {
+    logger.info('🔧 Resetting stuck projects and clearing queues...');
+
+    try {
+      // Reset all projects stuck in ANALYZING state
+      const result = await db.project.updateMany({
+        where: { status: ProjectStatus.ANALYZING },
+        data: {
+          status: ProjectStatus.DISCOVERED,
+          analyzedAt: null,
+        },
+      });
+
+      logger.info(`✅ Reset ${result.count} stuck projects`);
+
+      // Clear analysis queues
+      let clearedJobs = 0;
+      try {
+        const { getAnalysisQueue } = await import('../lib/analysis-queue');
+        const queueClient = await getAnalysisQueue();
+        clearedJobs = await queueClient.clearAllJobs();
+      } catch (error) {
+        logger.warn('⚠️  Failed to clear queues:', error);
+        // Continue even if queue clearing fails
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Reset completed successfully',
+        projectsReset: result.count,
+        jobsCleared: clearedJobs,
+      });
+    } catch (error) {
+      logger.error('❌ Reset failed:', error);
+      return reply.status(500).send({
+        error: 'Reset Failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
 }

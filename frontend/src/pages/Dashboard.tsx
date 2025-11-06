@@ -7,7 +7,7 @@ import { ProjectCard } from '@/components/projects/ProjectCard'
 import { SearchFilters, type FilterState } from '@/components/projects/SearchFilters'
 import { ProjectDetailModal } from '@/components/projects/ProjectDetailModal'
 import { ProjectGridSkeleton } from '@/components/projects/ProjectCardSkeleton'
-import { RefreshCw, Inbox, AlertCircle, FolderSearch } from 'lucide-react'
+import { RefreshCw, Inbox, AlertCircle, FolderSearch, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -29,6 +29,7 @@ export function Dashboard() {
   const [showScanDialog, setShowScanDialog] = useState(false)
   const [resetDeleted, setResetDeleted] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
 
   // Fetch projects (no pagination - fetch all)
   const { data, isLoading, error, refetch } = useQuery({
@@ -168,6 +169,28 @@ export function Dashboard() {
     }
   }, [resetDeleted, refetch])
 
+  const handleResetStuck = useCallback(async () => {
+    setIsResetting(true)
+
+    try {
+      const result = await apiClient.resetStuckProjects()
+
+      toast.success('Reset completed successfully', {
+        description: `Reset ${result.projectsReset} stuck projects and cleared ${result.jobsCleared} queued jobs.`
+      })
+
+      // Refetch projects to show updated status
+      refetch()
+    } catch (error) {
+      console.error('Failed to reset stuck projects:', error)
+      toast.error('Failed to reset stuck projects', {
+        description: error instanceof Error ? error.message : 'An error occurred'
+      })
+    } finally {
+      setIsResetting(false)
+    }
+  }, [refetch])
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -178,7 +201,7 @@ export function Dashboard() {
               <img
                 src="/logo.png"
                 alt="MyDevInsights Logo"
-                className="h-12 w-12"
+                className="h-25 w-25"
               />
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
@@ -190,6 +213,17 @@ export function Dashboard() {
               </div>
             </div>
             <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetStuck}
+                disabled={isResetting}
+                className="gap-2 hover:border-warning hover:bg-warning/10 transition-all"
+                title="Reset stuck projects and clear analysis queues"
+              >
+                <RotateCcw className={`h-4 w-4 ${isResetting ? 'animate-spin' : ''}`} />
+                Reset Stuck
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

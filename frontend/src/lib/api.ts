@@ -121,6 +121,19 @@ export class ApiClient {
     if (!response.ok) throw new Error('Failed to scan projects')
     return response.json()
   }
+
+  async resetStuckProjects(): Promise<{
+    success: boolean
+    message: string
+    projectsReset: number
+    jobsCleared: number
+  }> {
+    const response = await fetch(`${this.baseUrl}/projects/reset-stuck`, {
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error('Failed to reset stuck projects')
+    return response.json()
+  }
 }
 
 export const apiClient = new ApiClient()
