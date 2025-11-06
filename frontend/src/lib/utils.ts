@@ -91,7 +91,7 @@ const LOWERCASE_WORDS = new Set([
  * - "secure-ip-register" → "Secure IP Register"
  * - "AI-DVOCATE" → "AI-DVOCATE" (preserves existing caps)
  * - "vLLM-Testing" → "vLLM Testing"
- * - "project-viewer" → "Project Viewer"
+ * - "mydevinsights" → "MyDevInsights"
  * - "inflation-monitor" → "Inflation Monitor"
  */
 export function formatProjectName(name: string): string {

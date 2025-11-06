@@ -176,7 +176,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                Project Viewer
+                MyDevInsights
               </h1>
               <p className="text-sm text-muted-foreground mt-1.5">
                 AI-powered project discovery and analysis
