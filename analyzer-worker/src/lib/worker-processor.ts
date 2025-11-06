@@ -156,10 +156,15 @@ export class WorkerProcessor {
 
       result = await this.rateLimiter.execute(
         async () => {
+          const abortController = new AbortController();
           return await this.withTimeout(
-            this.claudeAnalyzer.analyzeProject(context, projectId),
+            this.claudeAnalyzer.analyzeProject(context, projectId, abortController.signal),
             this.config.timeout,
-            'AI analysis timeout'
+            'AI analysis timeout',
+            () => {
+              logger.debug(`Aborting timed-out API request for ${projectName}`);
+              abortController.abort();
+            }
           );
         },
         {
@@ -257,17 +262,23 @@ export class WorkerProcessor {
   }
 
   /**
-   * Execute function with timeout
+   * Execute function with timeout and optional cancellation
    */
   private withTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number,
-    errorMessage: string
+    errorMessage: string,
+    onTimeout?: () => void
   ): Promise<T> {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+        setTimeout(() => {
+          if (onTimeout) {
+            onTimeout(); // Call cancellation callback
+          }
+          reject(new Error(errorMessage));
+        }, timeoutMs)
       ),
     ]);
   }

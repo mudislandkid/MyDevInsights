@@ -29,7 +29,8 @@ export class ClaudeAnalyzer {
    */
   async analyzeProject(
     context: ProjectContext,
-    projectId: string
+    projectId: string,
+    abortSignal?: AbortSignal
   ): Promise<AnalysisResult> {
     const startTime = Date.now();
     logger.info(`🤖 Starting AI analysis for project: ${context.name}`);
@@ -39,25 +40,30 @@ export class ClaudeAnalyzer {
       const systemPrompt = this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(context);
 
-      // Call Claude API with prompt caching
-      const response = await this.client.messages.create({
-        model: this.model,
-        max_tokens: this.maxTokens,
-        temperature: this.temperature,
-        system: [
-          {
-            type: 'text',
-            text: systemPrompt,
-            cache_control: { type: 'ephemeral' } as any, // Cache system prompt
-          } as any,
-        ],
-        messages: [
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-      });
+      // Call Claude API with prompt caching and abort signal
+      const response = await this.client.messages.create(
+        {
+          model: this.model,
+          max_tokens: this.maxTokens,
+          temperature: this.temperature,
+          system: [
+            {
+              type: 'text',
+              text: systemPrompt,
+              cache_control: { type: 'ephemeral' } as any, // Cache system prompt
+            } as any,
+          ],
+          messages: [
+            {
+              role: 'user',
+              content: userPrompt,
+            },
+          ],
+        },
+        {
+          signal: abortSignal,
+        }
+      );
 
       // Parse response
       if (!response.content || response.content.length === 0) {
@@ -94,6 +100,12 @@ export class ClaudeAnalyzer {
 
       return result;
     } catch (error: any) {
+      // Check for abort errors (request was cancelled)
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        logger.warn(`⚠️  API request was aborted (timeout)`);
+        throw new Error('Analysis request timed out and was cancelled');
+      }
+
       // Check for rate limit errors
       if (error.status === 429 || error.message?.includes('rate_limit')) {
         logger.warn(`⚠️  Rate limit exceeded. Job will be retried automatically.`);

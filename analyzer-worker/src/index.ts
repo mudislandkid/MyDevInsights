@@ -19,7 +19,7 @@ const config: WorkerConfig = {
   model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
   maxTokens: parseInt(process.env.AI_MAX_TOKENS || '4096', 10),
   temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7'),
-  timeout: parseInt(process.env.AI_TIMEOUT_MS || '60000', 10),
+  timeout: parseInt(process.env.AI_TIMEOUT_MS || '180000', 10),
   cacheTTL: parseInt(process.env.CACHE_TTL_HOURS || '24', 10) * 3600000,
   maxContextTokens: parseInt(process.env.MAX_CONTEXT_TOKENS || '10000', 10),
   concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5', 10),
