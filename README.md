@@ -184,7 +184,7 @@ Before you begin, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/PROJECT_OWNER/project-viewer.git
+git clone https://github.com/mudislandkid/project-viewer.git
 cd project-viewer
 ```
 
@@ -615,8 +615,8 @@ services:
 
 ### Getting Help
 
-- **Issues**: https://github.com/PROJECT_OWNER/project-viewer/issues
-- **Discussions**: https://github.com/PROJECT_OWNER/project-viewer/discussions
+- **Issues**: https://github.com/mudislandkid/project-viewer/issues
+- **Discussions**: https://github.com/mudislandkid/project-viewer/discussions
 
 ---
 
@@ -676,7 +676,7 @@ Special thanks to all contributors and the open-source community!
 
 ## 📧 Contact
 
-**Project Link**: https://github.com/PROJECT_OWNER/project-viewer
+**Project Link**: https://github.com/mudislandkid/project-viewer
 
 For inquiries, please open a GitHub issue or discussion.
 
