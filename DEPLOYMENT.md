@@ -1,4 +1,4 @@
-# Project Viewer - Production Deployment Guide
+# MyDevInsights - Production Deployment Guide
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 POSTGRES_PASSWORD=your_secure_password_here
 
 # Optional - Database
-POSTGRES_DB=project_viewer
+POSTGRES_DB=mydevinsights
 POSTGRES_USER=postgres
 
 # Optional - Directories
@@ -155,7 +155,7 @@ docker-compose -f docker-compose.prod.yml exec backend npx prisma db seed
 - `POSTGRES_PASSWORD`: Secure PostgreSQL password
 
 #### Database
-- `POSTGRES_DB`: Database name (default: `project_viewer`)
+- `POSTGRES_DB`: Database name (default: `mydevinsights`)
 - `POSTGRES_USER`: Database user (default: `postgres`)
 - `DATABASE_URL`: Auto-generated connection string
 
@@ -289,18 +289,18 @@ analyzer-worker:
 
 ```bash
 # Create backup
-docker-compose -f docker-compose.prod.yml exec db pg_dump -U postgres project_viewer > backup.sql
+docker-compose -f docker-compose.prod.yml exec db pg_dump -U postgres mydevinsights > backup.sql
 
 # Restore backup
-docker-compose -f docker-compose.prod.yml exec -T db psql -U postgres project_viewer < backup.sql
+docker-compose -f docker-compose.prod.yml exec -T db psql -U postgres mydevinsights < backup.sql
 ```
 
 ### Volume Backup
 
 ```bash
 # Backup volumes
-docker run --rm -v project-viewer_postgres_data_prod:/data -v $(pwd):/backup alpine tar czf /backup/postgres-backup.tar.gz /data
-docker run --rm -v project-viewer_redis_data_prod:/data -v $(pwd):/backup alpine tar czf /backup/redis-backup.tar.gz /data
+docker run --rm -v mydevinsights_postgres_data_prod:/data -v $(pwd):/backup alpine tar czf /backup/postgres-backup.tar.gz /data
+docker run --rm -v mydevinsights_redis_data_prod:/data -v $(pwd):/backup alpine tar czf /backup/redis-backup.tar.gz /data
 ```
 
 ## Troubleshooting

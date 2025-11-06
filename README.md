@@ -1,4 +1,4 @@
-# Project Viewer
+# MyDevInsights
 
 <div align="center">
 
@@ -19,7 +19,7 @@ A modern, full-stack application that automatically discovers, analyzes, and pro
 
 ## 📖 Overview
 
-Project Viewer is an intelligent project management and analysis platform that automatically discovers software projects on your machine, analyzes their codebase, tech stack, and maturity level, and provides AI-generated insights including estimated project valuations.
+MyDevInsights is an intelligent project management and analysis platform that automatically discovers software projects on your machine, analyzes their codebase, tech stack, and maturity level, and provides AI-generated insights including estimated project valuations.
 
 Perfect for:
 - 🚀 **Developers** managing multiple projects
@@ -184,8 +184,8 @@ Before you begin, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/mudislandkid/project-viewer.git
-cd project-viewer
+git clone https://github.com/mudislandkid/mydevinsights.git
+cd mydevinsights
 ```
 
 ### 2. Set Up Environment Variables
@@ -418,7 +418,7 @@ npm run test:e2e:ui  # With Playwright UI
 ### Project Structure
 
 ```
-project-viewer/
+mydevinsights/
 ├── frontend/               # React frontend application
 │   ├── src/
 │   │   ├── components/    # React components
@@ -615,8 +615,8 @@ services:
 
 ### Getting Help
 
-- **Issues**: https://github.com/mudislandkid/project-viewer/issues
-- **Discussions**: https://github.com/mudislandkid/project-viewer/discussions
+- **Issues**: https://github.com/mudislandkid/mydevinsights/issues
+- **Discussions**: https://github.com/mudislandkid/mydevinsights/discussions
 
 ---
 
@@ -676,7 +676,7 @@ Special thanks to all contributors and the open-source community!
 
 ## 📧 Contact
 
-**Project Link**: https://github.com/mudislandkid/project-viewer
+**Project Link**: https://github.com/mudislandkid/mydevinsights
 
 For inquiries, please open a GitHub issue or discussion.
 
@@ -684,7 +684,7 @@ For inquiries, please open a GitHub issue or discussion.
 
 <div align="center">
 
-**[⬆ Back to Top](#project-viewer)**
+**[⬆ Back to Top](#mydevinsights)**
 
 Made with ❤️ by developers, for developers
 

@@ -1,5 +1,5 @@
 {
-  "name": "@project-viewer/analyzer-worker",
+  "name": "@mydevinsights/analyzer-worker",
   "version": "1.0.0",
   "description": "Background worker service for AI-powered project analysis",
   "main": "dist/index.js",

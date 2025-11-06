@@ -1,4 +1,4 @@
-# Project Viewer - Makefile
+# MyDevInsights - Makefile
 # Common Docker Compose commands for development
 
 .PHONY: help up down restart logs ps build clean verify test
@@ -7,7 +7,7 @@
 .DEFAULT_GOAL := help
 
 help: ## Show this help message
-	@echo "Project Viewer - Available Commands"
+	@echo "MyDevInsights - Available Commands"
 	@echo "===================================="
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
@@ -107,10 +107,10 @@ health: ## Check health of all services
 	@docker compose ps --format json | jq -r '.[] | "\(.Name): \(.State)"' 2>/dev/null || docker compose ps
 
 network-inspect: ## Inspect Docker network
-	docker network inspect project-viewer-network
+	docker network inspect mydevinsights-network
 
 volumes-inspect: ## List Docker volumes
-	docker volume ls | grep project-viewer
+	docker volume ls | grep mydevinsights
 
 prune: ## Remove unused Docker resources (images, containers, volumes)
 	@echo "This will remove unused Docker resources. Continue? [y/N]"

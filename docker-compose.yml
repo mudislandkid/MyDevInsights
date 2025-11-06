@@ -1,11 +1,11 @@
-# Project Viewer - Docker Compose Configuration
+# MyDevInsights - Docker Compose Configuration
 # Multi-service architecture for project discovery and AI-powered analysis
 
 services:
   # PostgreSQL Database - Primary data store
   postgres:
     image: postgres:15-alpine
-    container_name: project-viewer-postgres
+    container_name: mydevinsights-postgres
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     environment:
@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - project-viewer-network
+      - mydevinsights-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -27,13 +27,13 @@ services:
   # Redis - Cache and job queue
   redis:
     image: redis:7-alpine
-    container_name: project-viewer-redis
+    container_name: mydevinsights-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     networks:
-      - project-viewer-network
+      - mydevinsights-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -47,7 +47,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: project-viewer-backend
+    container_name: mydevinsights-backend
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
@@ -63,7 +63,7 @@ services:
       # Mount projects directory (read-only for security)
       - ${PROJECTS_PATH:-/tmp/projects}:/projects:ro
     networks:
-      - project-viewer-network
+      - mydevinsights-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,7 +77,7 @@ services:
     build:
       context: ./analyzer-worker
       dockerfile: Dockerfile.dev
-    container_name: project-viewer-worker
+    container_name: mydevinsights-worker
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/projectviewer}
@@ -91,7 +91,7 @@ services:
       # Mount projects directory (read-only)
       - ${PROJECTS_PATH:-/tmp/projects}:/projects:ro
     networks:
-      - project-viewer-network
+      - mydevinsights-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,7 +105,7 @@ services:
     build:
       context: ./file-watcher
       dockerfile: Dockerfile
-    container_name: project-viewer-file-watcher
+    container_name: mydevinsights-file-watcher
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
@@ -120,7 +120,7 @@ services:
       # Mount projects directory (read-only)
       - ${PROJECTS_PATH:-/tmp/projects}:/projects:ro
     networks:
-      - project-viewer-network
+      - mydevinsights-network
     depends_on:
       backend:
         condition: service_healthy  # Wait for backend to be fully healthy
@@ -136,7 +136,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: project-viewer-frontend
+    container_name: mydevinsights-frontend
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     environment:
@@ -147,7 +147,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     networks:
-      - project-viewer-network
+      - mydevinsights-network
     depends_on:
       - backend
     restart: unless-stopped
@@ -161,9 +161,9 @@ volumes:
 
 # Custom bridge network for inter-service communication
 networks:
-  project-viewer-network:
+  mydevinsights-network:
     driver: bridge
-    name: project-viewer-network
+    name: mydevinsights-network
     ipam:
       config:
         - subnet: 172.28.0.0/16

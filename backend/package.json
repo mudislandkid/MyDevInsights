@@ -1,7 +1,7 @@
 {
-  "name": "@project-viewer/backend",
+  "name": "@mydevinsights/backend",
   "version": "1.0.0",
-  "description": "Backend API server for Project Viewer",
+  "description": "Backend API server for MyDevInsights",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",

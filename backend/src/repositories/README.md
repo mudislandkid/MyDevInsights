@@ -1,6 +1,6 @@
 # Repository Layer
 
-Data access layer for Project Viewer database operations using Prisma ORM.
+Data access layer for MyDevInsights database operations using Prisma ORM.
 
 ## Structure
 

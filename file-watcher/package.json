@@ -1,5 +1,5 @@
 {
-  "name": "@project-viewer/file-watcher",
+  "name": "@mydevinsights/file-watcher",
   "version": "1.0.0",
   "description": "File system monitoring service for project discovery",
   "main": "dist/index.js",
