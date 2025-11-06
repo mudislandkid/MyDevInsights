@@ -134,6 +134,121 @@ export class ApiClient {
     if (!response.ok) throw new Error('Failed to reset stuck projects')
     return response.json()
   }
+
+  // Queue management methods
+  async getQueueStats(): Promise<{
+    data: {
+      waiting: number
+      active: number
+      completed: number
+      failed: number
+      delayed: number
+      healthy: boolean
+    }
+  }> {
+    const response = await fetch(`${this.baseUrl}/queue/stats`)
+    if (!response.ok) throw new Error('Failed to fetch queue stats')
+    return response.json()
+  }
+
+  async getQueueJobs(params?: {
+    status?: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed'
+    page?: number
+    limit?: number
+  }): Promise<{
+    data: Array<{
+      id: string
+      name: string
+      data: any
+      state: string
+      progress: number
+      timestamp: number
+      processedOn?: number
+      finishedOn?: number
+      failedReason?: string
+      attemptsMade: number
+    }>
+    pagination: {
+      page: number
+      limit: number
+      total: number
+    }
+  }> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) queryParams.append(key, String(value))
+      })
+    }
+
+    const response = await fetch(`${this.baseUrl}/queue/jobs?${queryParams.toString()}`)
+    if (!response.ok) throw new Error('Failed to fetch queue jobs')
+    return response.json()
+  }
+
+  async getQueueJob(id: string): Promise<{
+    data: {
+      id: string
+      name: string
+      data: any
+      state: string
+      progress: number
+      timestamp: number
+      processedOn?: number
+      finishedOn?: number
+      failedReason?: string
+      stacktrace?: string[]
+      attemptsMade: number
+      logs?: string[]
+    }
+  }> {
+    const response = await fetch(`${this.baseUrl}/queue/jobs/${id}`)
+    if (!response.ok) throw new Error('Failed to fetch queue job')
+    return response.json()
+  }
+
+  async deleteQueueJob(id: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/queue/jobs/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) throw new Error('Failed to delete queue job')
+  }
+
+  async clearQueue(): Promise<{
+    success: boolean
+    message: string
+    cleared: number
+    completedCleared: number
+    failedCleared: number
+  }> {
+    const response = await fetch(`${this.baseUrl}/queue/clear`, {
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error('Failed to clear queue')
+    return response.json()
+  }
+
+  async pauseQueue(): Promise<{
+    success: boolean
+    message: string
+  }> {
+    const response = await fetch(`${this.baseUrl}/queue/pause`, {
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error('Failed to pause queue')
+    return response.json()
+  }
+
+  async resumeQueue(): Promise<{
+    success: boolean
+    message: string
+  }> {
+    const response = await fetch(`${this.baseUrl}/queue/resume`, {
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error('Failed to resume queue')
+    return response.json()
+  }
 }
 
 export const apiClient = new ApiClient()

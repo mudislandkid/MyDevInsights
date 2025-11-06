@@ -193,24 +193,17 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="glass border-b border-border sticky top-0 z-50 backdrop-blur-lg shadow-lg">
+      {/* Page Header */}
+      <div className="glass border-b border-border">
         <div className="container mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img
-                src="/logo.png"
-                alt="MyDevInsights Logo"
-                className="h-25 w-25"
-              />
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                  MyDevInsights
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1.5">
-                  AI-powered project discovery and analysis
-                </p>
-              </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                Project Dashboard
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                AI-powered project discovery and analysis
+              </p>
             </div>
             <div className="flex gap-3">
               <Button
@@ -247,7 +240,7 @@ export function Dashboard() {
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">

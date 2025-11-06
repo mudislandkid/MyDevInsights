@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/error-handler';
 import { RateLimiter } from './middleware/security';
 import { projectRoutes } from './routes/projects';
 import { healthRoutes } from './routes/health';
+import { queueRoutes } from './routes/queue';
 import { websocketPlugin } from './plugins/websocket';
 import loggingPlugin from './plugins/logging';
 import logger from './utils/logger';
@@ -77,6 +78,7 @@ export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance>
   // Register routes
   await app.register(healthRoutes, { prefix: '/health' });
   await app.register(projectRoutes, { prefix: '/projects' });
+  await app.register(queueRoutes, { prefix: '/queue' });
 
   // Register WebSocket
   await app.register(websocketPlugin);
@@ -90,6 +92,7 @@ export async function buildApp(config: AppConfig = {}): Promise<FastifyInstance>
       endpoints: {
         health: '/health',
         projects: '/projects',
+        queue: '/queue',
         websocket: '/ws',
       },
     };
